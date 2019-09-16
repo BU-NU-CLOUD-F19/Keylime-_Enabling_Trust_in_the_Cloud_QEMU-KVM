@@ -31,6 +31,10 @@ The main system components of the Keylime extension are Keylime itself, the QEMU
   - QEMU/KVM hypervisor
   - Trusted Platform Module (TPM): Version 2.0
   - Keylime
+    - Tenant Cloud Verifier
+    - Tenant Registrar
+    - Provider Tegistrar
+    
 - Problem: vTPM is not isolated hardware, can be tampered with or spoofed. So we need to extend trust from hardware TPM to vTPM.
 
 ![System diagram of Keylime implementation](/assets/images/keylime_diagram.png)

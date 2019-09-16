@@ -40,7 +40,7 @@ The main high-level system components of the Keylime extension are Keylime itsel
     - Tenant Registrar
     - Provider Registrar
     
-- Problem: vTPM is not isolated hardware, and can be tampered with or spoofed. We need to extend trust from the hardware TPM to vTPM.
+- Problem: vTPM is not isolated hardware, since it is stored on disk, and can be tampered with or spoofed. We need to extend trust from the hardware TPM to vTPM.
 
 ![System diagram of Keylime implementation](/assets/images/keylime_diagram.png)
 

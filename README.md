@@ -23,7 +23,7 @@ The Keylime extension does not target users who have a non-QEMU/KVM hypervisor.
 ## Project Scope and Features [TODO: In progress]
 - Add any functionalities needed for Keylime to support KVM
 - Port Xen implementation to QEMU
-- Extend trust from hardware TPM to virtual TPM
+- Extend trust from hardware TPM to vTPM
 - Add changes or additions to Keylime codebase (libraries) for KVM support
 
 ![System diagram of Keylime implementation](/assets/images/solution_diagram.png)

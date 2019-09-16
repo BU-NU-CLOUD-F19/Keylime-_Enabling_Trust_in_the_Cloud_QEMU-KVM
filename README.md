@@ -9,11 +9,13 @@ Keylime: Enabling Trust in the Cloud - QEMU/KVM is an extension of the current i
 
 
 ## Users/personas of the project
-The Keylime extension  will be used by cloud service providers, cloud service users, and developers.  It specifically targets open-source cloud users, since QEMU/KVM is the most popular open-source hypervisor. 
+The Keylime extension will be used by cloud service providers, cloud service users, and developers.  It specifically targets open-source cloud users, since QEMU/KVM is the most popular open-source hypervisor. 
 
 The Keylime extension will also be used by the Keylime development community to push the project forward. The community is committed to introducing and integrating new security verification features for cloud computing.
 
 In general, Keylime targets organizations that could benefit from cloud computing, but are reluctant to use it due to security limitations in protecting sensitive data.  These organizations include, but are not limited to, the government, medical organizations, and financial institutions.
+
+The Keylime extension does not target users who have a non-QEMU/KVM hypervisor.
 
 
 ## Scope and features of the project [TODO: In progress]
@@ -33,9 +35,9 @@ The main system components of the Keylime extension are Keylime itself, the QEMU
   - Keylime
     - Tenant Cloud Verifier
     - Tenant Registrar
-    - Provider Tegistrar
+    - Provider Registrar
     
-- Problem: vTPM is not isolated hardware, can be tampered with or spoofed. So we need to extend trust from hardware TPM to vTPM.
+- Problem: vTPM is not isolated hardware, and can be tampered with or spoofed. So we need to extend trust from hardware TPM to vTPM.
 
 ![System diagram of Keylime implementation](/assets/images/keylime_diagram.png)
 
@@ -52,6 +54,7 @@ The stretch goals of the Keylime extension are to implement the project in RUST,
 
 ## Release planning
 - Release 1
+  - Complete all research spikes associated with the project components
   - Communicate with TPM hardware
 - Release 2
   - Verify trust of a KVM hypervisor

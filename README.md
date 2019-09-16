@@ -2,6 +2,8 @@
 
 ## Vision and goals of the project
 
+The Keylime project is a scalable cloud management system that connects the security features of hardware Trusted Platform Modules to cloud computing.  It allows users to verify that every level of their remote system has not been compromised or tampered with, and continuously measures system integrity by monitoring Infrastructure-as-a-Service (IaaS) nodes.
+
 Keylime: Enabling Trust in the Cloud - QEMU/KVM is an extension of the current implementation of the Keylime project. The high-level goals of this project are as follows:
 
 1. Extend trust from the hardware TPM to the vTPM by chaining trust upwards from the hardware module.
@@ -28,7 +30,8 @@ The Keylime extension does not target users who have a non-QEMU/KVM hypervisor.
 
 
 ## Solution concept [TODO: In progress]
-The main system components of the Keylime extension are Keylime itself, the QEMU/KVM hypervisor (including the virtual TPM), and the Trusted Platform Module (TPM): Version 2.0.
+The main high-level system components of the Keylime extension are Keylime itself, the QEMU/KVM hypervisor (including the virtual TPM), and the Trusted Platform Module (TPM): Version 2.0.
+
 - System components
   - QEMU/KVM hypervisor
   - Trusted Platform Module (TPM): Version 2.0
@@ -37,11 +40,11 @@ The main system components of the Keylime extension are Keylime itself, the QEMU
     - Tenant Registrar
     - Provider Registrar
     
-- Problem: vTPM is not isolated hardware, and can be tampered with or spoofed. So we need to extend trust from hardware TPM to vTPM.
+- Problem: vTPM is not isolated hardware, and can be tampered with or spoofed. We need to extend trust from the hardware TPM to vTPM.
 
 ![System diagram of Keylime implementation](/assets/images/keylime_diagram.png)
 
-We are building on the existing Keylime project, we will continue using the exisiting techonology, extend trust from TPM to vTPM. The key parts of solution will involve using Xen Hypervisor to develop vTPM, using DeepQuote instead of quote in the former Keylime.
+Building on the existing Keylime project, we will continue using the exisiting techonology to extend trust from TPM to vTPM. The key parts of the solution will involve using the Xen Hypervisor to develop vTPM, using DeepQuote instead of quote in the former Keylime.
 
 Each vTPM is a separate Xen VM. Trust of vTPM rooted in hardware of the htpervisor, that the extention of trust from TPM to vTPM. DeepQuote operation is applied to obtain hardware TPM quote from a vTPM. By virtualizing Keylime, Tenant Cloud Verifier can verify many cloud nodes as well as derive a key in less than 2 second, which enable Keylime scale to monitor integrity of thousands of cloud machines.
 

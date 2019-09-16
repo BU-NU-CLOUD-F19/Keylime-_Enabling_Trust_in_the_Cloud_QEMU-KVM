@@ -70,11 +70,9 @@ The stretch goals of the Keylime extension are to implement the project in RUST,
   - Port Keylime extension to RUST
 
 ## References and Resources
-- About project: 
+- About the project: 
   - https://docs.google.com/document/d/1K-mTbK9LBRvG6KEFH4Ys-Eb1zROZD1neWJRi9C-groo/edit#heading=h.jxvflg4dxu72
   - https://docs.google.com/document/d/1Y-EJXihnJM3puRJQfb1v-4sS7g-mni-AoM5CMNZ0ncc/edit
-- Example project description: 
-  - https://github.com/BU-NU-CLOUD-SP18/sample-project/blob/master/MOC-UI-ProjectProposalExample.md
 
 - About Keylime
   - https://next.redhat.com/2018/09/11/building-trust-in-cloud-computing-with-keylime/

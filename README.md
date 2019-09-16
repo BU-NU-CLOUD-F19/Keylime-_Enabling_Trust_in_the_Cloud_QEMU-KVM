@@ -41,7 +41,7 @@ In general, Keylime targets organizations that could benefit from cloud computin
 - Port Xen implementation to QEMU
 - Extend trust from hardware TPM to virtual TPM
 - Add changes or additions to Keylime codebase (libraries) for KVM support
-![System diagram of Keylime implementation](/assets/images/philly-magic-gardens.jpg "Philadelphia's Magic Gardens")
+![System diagram of Keylime implementation](/img/sys_diag.png")
 ## Solution concept
 The main system components of the Keylime extension are Keylime itself, the QEMU/KVM hypervisor (including the virtual TPM), and the Trusted Platform Module (TPM): Version 2.0.
 - System components

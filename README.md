@@ -45,12 +45,15 @@ The main high-level system components of the Keylime extension are Keylime itsel
  **Trusted Bootstrapping**
  
  ![Trusted Bootstrapping p1](/assets/images/boot_p1.png)
- ![Trusted Bootstrapping p2](/assets/images/boot_p2.png)
+
  
   - Tenant generates a new bootstrap key for node being provisioned and splits it into two
   - Tenant keeps one piece for bootstrapping and gives the other piece to the Verifier
   - Tenant interacts with the Agent to demonstrate the intent to provision the node
   - Tenant and Verfier both send separate attestation requests to the Agent, and validate the quote returned using the Registrar
+  
+   ![Trusted Bootstrapping p2](/assets/images/boot_p2.png)
+  
   - When either one of them receive a valid attestation result, they send their piece of the bootstrap key to the node being provisioned
   - Once both parts of the key are sent to the node, the Agent can recombine and decrypt the node’s configuration data including private keys sent to the node via configuration service
 

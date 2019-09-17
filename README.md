@@ -67,7 +67,7 @@ The main high-level system components of the Keylime extension are Keylime itsel
   - if invalid - denoting system state of the reporting node has somehow changed - the verifier issues a revocation notice to the CA
   - Once CA receives revocation notice, it should invalidate the affected nodes’ keys, effectively breaking all crypto related network connections and services for the node 
 
-- Problem: 
+**Problem:** 
   - vTPM is not isolated hardware, since it is stored on disk, and can be tampered with or spoofed. We need to extend trust from the hardware TPM to vTPM. 
   - TPM V2.0 is not backward compatible with previous TPM. Since Keylime is developed based on former version(V1.2), it also need to be upgraded to be compatible with TPM V2.0.
   - Current implementation of Keylime is written in Python but want to port to a Rust, a more secure language.

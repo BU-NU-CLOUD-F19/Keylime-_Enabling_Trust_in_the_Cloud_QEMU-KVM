@@ -21,7 +21,7 @@ The Keylime extension does not target users who have a non-QEMU/KVM hypervisor.
 
 
 ## Project Scope and Features [TODO: In progress]
-- Add any functionalities needed for Keylime to support KVM
+- Add any functionalities needed for Keylime to support vTPM in KVM
 - Port Xen implementation to QEMU
 - Extend trust from hardware TPM to vTPM
 - Add changes or additions to Keylime codebase (libraries) for KVM support
@@ -39,14 +39,43 @@ The main high-level system components of the Keylime extension are Keylime itsel
     - Tenant Cloud Verifier
     - Tenant Registrar
     - Provider Registrar
-    
-- Problem: vTPM is not isolated hardware, since it is stored on disk, and can be tampered with or spoofed. We need to extend trust from the hardware TPM to vTPM.
+  
+ Keylime consists of two main services: **trusted bootstrapping** and **continuous attestation**.
+ 
+ **Trusted Bootstrapping**
+ 
+ ![Trusted Bootstrapping p1](/assets/images/boot_p1.png)
+ ![Trusted Bootstrapping p2](/assets/images/boot_p2.png)
+ 
+  - Tenant generates a new bootstrap key for node being provisioned and splits it into two
+  - Tenant keeps one piece for bootstrapping and gives the other piece to the Verifier
+  - Tenant interacts with the Agent to demonstrate the intent to provision the node
+  - Tenant and Verfier both send separate attestation requests to the Agent, and validate the quote returned using the Registrar
+  - When either one of them receive a valid attestation result, they send their piece of the bootstrap key to the node being provisioned
+  - Once both parts of the key are sent to the node, the Agent can recombine and decrypt the node’s configuration data including private keys sent to the node via configuration service
 
+**Continuous Attestation**
+
+ ![System diagram of Keylime implementation](/assets/images/attest_succ.png)
+ 
+  - the verifier continuously requests quotes from the agent
+  - each request induces agent to retrieve a quote from that nodes TPM (or vTPM) 
+  - that quote is returned to verifier, which cryptographically verifies if the quote is valid
+  - if invalid - denoting system state of the reporting node has somehow changed - the verifier issues a revocation notice to the CA
+  - Once CA receives revocation notice, it should invalidate the affected nodes’ keys, effectively breaking all crypto related network connections and services for the node 
+
+- Problem: 
+  - vTPM is not isolated hardware, since it is stored on disk, and can be tampered with or spoofed. We need to extend trust from the hardware TPM to vTPM. 
+  - TPM V2.0 is not backward compatible with previous TPM. Since Keylime is developed based on former version(V1.2), it also need to be upgraded to be compatible with TPM V2.0.
+  - Current implementation of Keylime is written in Python but want to port to a Rust, a more secure language.
+  
+**Desired architecture**
+ 
 ![System diagram of Keylime implementation](/assets/images/keylime_diagram.png)
 
-Building on the existing Keylime project, we will continue using the exisiting techonology to extend trust from TPM to vTPM. The key parts of the solution will involve using the Xen Hypervisor to develop vTPM, using DeepQuote instead of quote in the former Keylime.
+Building on the existing Keylime project, we will continue using the exisiting techonology to extend trust from TPM to vTPM. The key parts of the solution will involve using the QEMU/KVM Hypervisor to develop vTPM, using DeepQuote instead of quote in the former Keylime.
 
-Each vTPM is a separate Xen VM. Trust of vTPM rooted in hardware of the htpervisor, that the extention of trust from TPM to vTPM. DeepQuote operation is applied to obtain hardware TPM quote from a vTPM. By virtualizing Keylime, Tenant Cloud Verifier can verify many cloud nodes as well as derive a key in less than 2 second, which enable Keylime scale to monitor integrity of thousands of cloud machines.
+Each vTPM is a separate VM. Trust of vTPM rooted in hardware of the htpervisor, that the extention of trust from TPM to vTPM. DeepQuote operation is applied to obtain hardware TPM quote from a vTPM. By virtualizing Keylime, Tenant Cloud Verifier can verify many cloud nodes as well as derive a key in less period, which enable Keylime scale to monitor integrity of thousands of cloud machines.
 
 ## Acceptance Criteria
 

@@ -1,5 +1,10 @@
 # Keylime: Enabling Trust in the Cloud - QEMU/KVM
 
+
+## Project Background
+- Keylime
+- TPM
+
 ## Project Vision and Goals
 
 Keylime is a bootstrapping and integrity management software tool that connects the security features of hardware Trusted Platform Modules to cloud computing.  It allows users to verify that every level of their remote system has not been compromised or tampered with. It also continuously measures system integrity by monitoring Infrastructure-as-a-Service (IaaS) nodes, also known as Keylime agents.

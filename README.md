@@ -2,7 +2,7 @@
 
 ## Project Vision and Goals
 
-The Keylime project is a scalable cloud management system that connects the security features of hardware Trusted Platform Modules to cloud computing.  It allows users to verify that every level of their remote system has not been compromised or tampered with, and continuously measures system integrity by monitoring Infrastructure-as-a-Service (IaaS) nodes.
+Keylime is a bootstrapping and integrity management software tool that connects the security features of hardware Trusted Platform Modules to cloud computing.  It allows users to verify that every level of their remote system has not been compromised or tampered with. It also continuously measures system integrity by monitoring Infrastructure-as-a-Service (IaaS) nodes, also known as Keylime agents.
 
 Keylime: Enabling Trust in the Cloud - QEMU/KVM is an extension of the current implementation of the Keylime project. The high-level goals of this project are as follows:
 
@@ -12,6 +12,8 @@ Keylime: Enabling Trust in the Cloud - QEMU/KVM is an extension of the current i
 
 ## Project Users/Personas
 The Keylime extension will be used by cloud service providers, cloud service users, and developers.  It specifically targets open-source cloud users, since QEMU/KVM is the most popular open-source hypervisor. 
+
+Ideally, cloud service providers will run Keylime on their servers.  This would include having a Keylime verifier and registrar to monitor system integrity in addition to any other nodes. However, this still restricts integrity verification to cloud providers.  Keylime is mainly intended to be run by cloud service users.  This way, instead of just trusting the "all clear" message from cloud providers, users can see for themselves that the nodes they are using have not been compromised.
 
 The Keylime extension will also be used by the Keylime development community to push the project forward. The community is committed to introducing and integrating new security verification features for cloud computing.
 

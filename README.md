@@ -2,12 +2,13 @@
 
 
 ## Project Background
-- Keylime
-- TPM
+In cloud computing, users running applications on Infrastructure-as-a-Service (IaaS) nodes can not verify for themselves that the resources they are using are secure. Because of this, they must fully trust the cloud service provider that nothing (from the hypervisors to the OS) has been compromised. This raises a concern, because the user does not know if the resources are controlled by malicious insiders and rogue organizations. 
+
+A Trusted Platform Module (TPM) is a hardware chip with secure key generation and storage functionalities. It contains Platform Configuration Registers (PCRs) that are able to store measurements of system integrity in firmwares, hypervisors, OSes, etc. Through this, it can verify if the system has been altered or tampered with. However, using TPMs is complex, can lead to slower performance, and not compatible with virtualized machines (because it is a physical device).
 
 ## Project Vision and Goals
 
-Keylime is a bootstrapping and integrity management software tool that connects the security features of hardware Trusted Platform Modules to cloud computing.  It allows users to verify that every level of their remote system has not been compromised or tampered with. It also continuously measures system integrity by monitoring Infrastructure-as-a-Service (IaaS) nodes, also known as Keylime agents.
+Keylime is a bootstrapping and integrity management software tool that connects the security features of TPMs to cloud computing.  It allows users to verify that every level of their remote system has not been compromised or tampered with, without having to deal with the drawbacks mentioned before. It also continuously measures system integrity by monitoring the cloud (IaaS) nodes, also known as Keylime agents.
 
 Keylime: Enabling Trust in the Cloud - QEMU/KVM is an extension of the current implementation of the Keylime project. The high-level goals of this project are as follows:
 

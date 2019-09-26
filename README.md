@@ -13,7 +13,7 @@ Keylime is a bootstrapping and integrity management software tool that connects 
 Keylime: Enabling Trust in the Cloud - QEMU/KVM is an extension of the current implementation of the Keylime project. The high-level goals of this project are as follows:
 
 1. Extend trust from the hardware TPM to the vTPM by chaining trust upwards from the hardware module.
-2. Provide bootstrapping and monitoring capabilities in virtualized environments for QEMU/KVM.
+2. Provide bootstrapping and monitoring capabilities in virtualized environments for QEMU/KVM hypervisor.
 
 
 ## Project Users/Personas
@@ -98,8 +98,10 @@ The stretch goals of the Keylime extension are to implement the project in RUST,
 ## Release Planning
 - Release 1
   - Complete all research spikes associated with the project components
+  - Get Keylime up and running on a Docker container
   - Communicate with TPM hardware
 - Release 2
+  - Plan out all elements that need to be modified and what modifications needed to be made
   - Verify trust of a KVM hypervisor
 - Release 3
   - Extend trust from one hardware TPM to one QEMU/KVM vTPM
@@ -111,6 +113,7 @@ The stretch goals of the Keylime extension are to implement the project in RUST,
 
 ## Open Questions & Risks
 - Does the MOC provide a TPM for Keylime to utilize?
+- Which functions/code do we need to focus on editing?
 
 ## References and Resources
 - About the project: 
@@ -123,6 +126,7 @@ The stretch goals of the Keylime extension are to implement the project in RUST,
   - https://keylime-docs.readthedocs.io/en/latest/
   - https://github.com/keylime/keylime/issues/29
   - https://gitter.im/keylime-project/community
+  - https://www.ll.mit.edu/sites/default/files/publication/doc/2018-04/2016_12_07_SchearN_ACSAC_FP.pdf
 
 - About vTPM
   - https://arxiv.org/pdf/1905.08493.pdf

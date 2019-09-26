@@ -6,9 +6,36 @@ In cloud computing, users running applications on Infrastructure-as-a-Service (I
 
 A Trusted Platform Module (TPM) is a hardware chip with secure key generation and storage functionalities. It contains Platform Configuration Registers (PCRs) that are able to store measurements of system integrity in firmwares, hypervisors, OSes, etc. Through this, it can verify if the system has been altered or tampered with. However, using TPMs is complex, can lead to slower performance, and not compatible with virtualized machines (because it is a physical device).
 
-## Project Vision and Goals
-
 Keylime is a bootstrapping and integrity management software tool that connects the security features of TPMs to cloud computing.  It allows users to verify that every level of their remote system has not been compromised or tampered with, without having to deal with the drawbacks mentioned before. It also continuously measures system integrity by monitoring the cloud (IaaS) nodes, also known as Keylime agents.
+
+Keylime consists of two main services: **trusted bootstrapping** and **continuous attestation**.
+ 
+ **Trusted Bootstrapping (Making a cryptographic identity for a cloud node)**
+ 
+ ![Trusted Bootstrapping p1](/assets/images/boot_p1.png)
+
+ 
+  - Tenant generates a new bootstrap key for node being provisioned and splits it into two
+  - Tenant keeps one piece for bootstrapping and gives the other piece to the Verifier
+  - Tenant interacts with the Agent to demonstrate the intent to provision the node
+  - Tenant and Verfier both send separate attestation requests to the Agent, and validate the quote returned using the Registrar
+  
+   ![Trusted Bootstrapping p2](/assets/images/boot_p2.png)
+  
+  - When either one of them receive a valid attestation result, they send their piece of the bootstrap key to the node being provisioned
+  - Once both parts of the key are sent to the node, the Agent can recombine and decrypt the node’s configuration data including private keys sent to the node via configuration service
+
+**Continuous Attestation (Continuously monitoring the identity to see if the node has been tampered with)**
+
+ ![System diagram of Keylime implementation](/assets/images/attest_succ.png)
+ 
+  - the verifier continuously requests quotes (sets of measurements for system integrity) from the agent
+  - each request induces agent to retrieve a quote from that nodes TPM (or vTPM) 
+  - that quote is returned to verifier, which cryptographically verifies if the quote is valid
+  - if invalid - denoting system state of the reporting node has somehow changed - the verifier issues a revocation notice to the CA
+  - Once CA receives revocation notice, it should invalidate the affected nodes’ keys, effectively breaking all crypto related network connections and services for the node 
+
+## Project Vision and Goals
 
 Keylime: Enabling Trust in the Cloud - QEMU/KVM is an extension of the current implementation of the Keylime project. The high-level goals of this project are as follows:
 
@@ -28,10 +55,14 @@ In general, Keylime targets organizations that could benefit from cloud computin
 The Keylime extension does not target users who have a non-QEMU/KVM hypervisor.
 
 
-## Project Scope and Features [TODO: In progress]
+## Project Scope and Features
+
 - Add any functionalities needed for Keylime to support vTPM in KVM
 - Port Xen implementation to QEMU
-- Extend trust from hardware TPM to vTPM
+- Extend trust from hardware TPM to vTPM through a function called "deepquote"
+  - Get backend code to recognize a special deepquote request
+  - Port deepquote functionality to vTPM
+  - Integrate TPM 2.0 functionality with Keylime
 - Add changes or additions to Keylime codebase (libraries) for KVM support
 
 ![System diagram of Keylime implementation](/assets/images/solution_diagram.png)
@@ -48,32 +79,7 @@ The main high-level system components of the Keylime extension are Keylime itsel
     - Tenant Registrar
     - Provider Registrar
   
- Keylime consists of two main services: **trusted bootstrapping** and **continuous attestation**.
- 
- **Trusted Bootstrapping**
- 
- ![Trusted Bootstrapping p1](/assets/images/boot_p1.png)
 
- 
-  - Tenant generates a new bootstrap key for node being provisioned and splits it into two
-  - Tenant keeps one piece for bootstrapping and gives the other piece to the Verifier
-  - Tenant interacts with the Agent to demonstrate the intent to provision the node
-  - Tenant and Verfier both send separate attestation requests to the Agent, and validate the quote returned using the Registrar
-  
-   ![Trusted Bootstrapping p2](/assets/images/boot_p2.png)
-  
-  - When either one of them receive a valid attestation result, they send their piece of the bootstrap key to the node being provisioned
-  - Once both parts of the key are sent to the node, the Agent can recombine and decrypt the node’s configuration data including private keys sent to the node via configuration service
-
-**Continuous Attestation**
-
- ![System diagram of Keylime implementation](/assets/images/attest_succ.png)
- 
-  - the verifier continuously requests quotes from the agent
-  - each request induces agent to retrieve a quote from that nodes TPM (or vTPM) 
-  - that quote is returned to verifier, which cryptographically verifies if the quote is valid
-  - if invalid - denoting system state of the reporting node has somehow changed - the verifier issues a revocation notice to the CA
-  - Once CA receives revocation notice, it should invalidate the affected nodes’ keys, effectively breaking all crypto related network connections and services for the node 
 
 **Problem:** 
   - vTPM is not isolated hardware, since it is stored on disk, and can be tampered with or spoofed. We need to extend trust from the hardware TPM to vTPM. 
@@ -100,21 +106,28 @@ The stretch goals of the Keylime extension are to implement the project in RUST,
   - Complete all research spikes associated with the project components
   - Get Keylime up and running on a Docker container
   - Communicate with TPM hardware
-  - Sprint 1 Presentation: https://docs.google.com/presentation/d/1YRiCh9JLPN-RTcto8vccMqHcnGL8mvYgsJaDZAbDeK8/edit?usp=sharing
 - Release 2
   - Plan out all elements that need to be modified and what modifications needed to be made
   - Verify trust of a KVM hypervisor
 - Release 3
-  - Extend trust from one hardware TPM to one QEMU/KVM vTPM
+  - Communicate with the software TPM (vTPM) on a QEMU/KVM hypervisor 
 - Release 4
-  - Extend trust from one hardware TPM to many QEMU/KVM vTPMs
+  - Extend trust from one hardware TPM to one QEMU/KVM vTPM
 - Release 5
+  - Extend trust from one hardware TPM to many QEMU/KVM vTPMs
   - Performance enhancement
   - Port Keylime extension to RUST
+
+## Presentation slides
+- Sprint 1: https://docs.google.com/presentation/d/1YRiCh9JLPN-RTcto8vccMqHcnGL8mvYgsJaDZAbDeK8/edit?usp=sharing
 
 ## Open Questions & Risks
 - Does the MOC provide a TPM for Keylime to utilize?
 - Which functions/code do we need to focus on editing?
+- What versions of TPM are supported by which hypervisors?
+- Does the vTPM already exist on a QEMU/KVM hypervisor?
+- What are the key differences in TPM1.2 and TPM2.0?
+- What would be considered beyond the scope of this project? 
 
 ## References and Resources
 - About the project: 

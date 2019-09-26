@@ -1,4 +1,4 @@
-# Keylime: Enabling Trust in the Cloud - QEMU/KVM
+﻿# Keylime: Enabling Trust in the Cloud - QEMU/KVM
 
 
 ## Project Background
@@ -107,6 +107,9 @@ The stretch goals of the Keylime extension are to implement the project in RUST,
 - Release 5
   - Performance enhancement
   - Port Keylime extension to RUST
+
+## Open Questions & Risks
+- Does the MOC provide a TPM for Keylime to utilize?
 
 ## References and Resources
 - About the project: 

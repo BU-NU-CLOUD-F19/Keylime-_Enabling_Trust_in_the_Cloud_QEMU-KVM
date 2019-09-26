@@ -100,6 +100,7 @@ The stretch goals of the Keylime extension are to implement the project in RUST,
   - Complete all research spikes associated with the project components
   - Get Keylime up and running on a Docker container
   - Communicate with TPM hardware
+  - Sprint 1 Presentation: https://docs.google.com/presentation/d/1YRiCh9JLPN-RTcto8vccMqHcnGL8mvYgsJaDZAbDeK8/edit?usp=sharing
 - Release 2
   - Plan out all elements that need to be modified and what modifications needed to be made
   - Verify trust of a KVM hypervisor

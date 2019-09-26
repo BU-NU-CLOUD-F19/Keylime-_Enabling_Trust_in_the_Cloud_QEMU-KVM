@@ -126,8 +126,9 @@ The stretch goals of the Keylime extension are to implement the project in RUST,
 - Which functions/code do we need to focus on editing?
 - What versions of TPM are supported by which hypervisors?
 - Does the vTPM already exist on a QEMU/KVM hypervisor?
-- What are the key differences in TPM1.2 and TPM2.0?
-- What would be considered beyond the scope of this project? 
+- What are the implementation differences (in code) in TPM1.2 and TPM2.0?
+- What would be considered beyond the scope of this project?
+- What happens to the node/resources when the user is done using it? 
 
 ## References and Resources
 - About the project: 

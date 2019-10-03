@@ -88,11 +88,16 @@ The main high-level system components of the Keylime extension are Keylime itsel
   
 **Desired architecture**
  
-![System diagram of Keylime implementation](/assets/images/keylime_diagram.png)
+![System diagram of Keylime implementation](/assets/images/keylime_scope.jpg)
 
-Building on the existing Keylime project, we will continue using the exisiting techonology to extend trust from TPM to vTPM. The key parts of the solution will involve using the QEMU/KVM Hypervisor to develop vTPM, using DeepQuote instead of quote in the former Keylime.
+Instead of having the vTPM directly communicate with the TPM, as was done in the XEN implementation of Keylime, we will rather have the Cloud Provider deploy a second instance of Keylime on it's physical hardware and have the provider's Keylime components interact with the tenant's Keylime components. 
 
-Each vTPM is a separate VM. Trust of vTPM rooted in hardware of the htpervisor, that the extention of trust from TPM to vTPM. DeepQuote operation is applied to obtain hardware TPM quote from a vTPM. By virtualizing Keylime, Tenant Cloud Verifier can verify many cloud nodes as well as derive a key in less period, which enable Keylime scale to monitor integrity of thousands of cloud machines.
+![System diagram of Merkle Tree implementation](/assets/images/merkel_tree.jpg)
+
+Instead of deepquote we will create a Merkle Tree of the hashes of the nonces.
+
+The key parts of the solution will involve using the QEMU/KVM Hypervisor to develop vTPM. We will also need to write an interface for the provider verifier to send the current root to the provider agent and the agent the result quote back. We need to still decide whether the Merkle Tree will live on the provider agent or provider verifier. We need to write interface endpoints for the tenant verifier to communicate with the provider verifier to request quotes synchronously, and an interface layer to abstract from the Merkle Tree. We still need to figure out registration for the provider agent to provider provider registrar, and how secure we can make that.
+
 
 ## Acceptance Criteria
 

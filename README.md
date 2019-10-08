@@ -108,7 +108,7 @@ The key parts of the solution will involve using the QEMU/KVM Hypervisor to deve
 
 ## Acceptance Criteria
 
-The minimum acceptance criteria for this project is a working Keylime port to QEMU/KVM in Python 3.6.  This includes the ability to verify the trust of a KVM hypervisor, and extending the trust from the hardware TPM to the vTPM running on the QEMU/KVM hypervisor.
+The minimum acceptance criteria for this project is a working Keylime port to QEMU/KVM in Python 3.6. What makes the Keylime port functional at a minimum is the ability to bootstrap and establish trust cryptographically between the user and cloud node via communications with the hardware TPM.
 
 The stretch goals of the Keylime extension are to implement the project in RUST, and to work on closing issues in the Keylime GitHub repo.
 

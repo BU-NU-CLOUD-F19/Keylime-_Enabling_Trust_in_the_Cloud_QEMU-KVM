@@ -135,10 +135,12 @@ The stretch goals of the Keylime extension are to implement the project in RUST,
 - Sprint 1: https://docs.google.com/presentation/d/1YRiCh9JLPN-RTcto8vccMqHcnGL8mvYgsJaDZAbDeK8/edit?usp=sharing
 
 ## Open Questions & Risks
+
 Problems considered:
 - vTPM is not isolated hardware, since it is stored on disk, and can be tampered with or spoofed. We need to extend trust from the hardware TPM to vTPM. 
 - TPM V2.0 is not backward compatible with previous TPM. Since Keylime is developed based on former version(V1.2), it also need to be upgraded to be compatible with TPM V2.0.
 - Current implementation of Keylime is written in Python but want to port to a Rust, a more secure language.
+
 Questions still needed to be answered:
 - Does the MOC provide a TPM for Keylime to utilize?
 - Which functions/code do we need to focus on editing?

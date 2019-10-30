@@ -10,9 +10,13 @@ Keylime is a bootstrapping and integrity management software tool that connects 
 
 The Keylime system includes four key executable components: a cloud verifier that periodically checks the integrities of the nodes, a registrar that stores public attestation identity keys (AIKs) of TPMs, an agent node that is able to communicate with the TPM, and the tenant client that a user can use to interact with the three previously mentioned components.
 
-Keylime consists of two main services: **trusted bootstrapping** and **continuous attestation**.
+Keylime consists of one minor service (**registration**) and two main services (**trusted bootstrapping** and **continuous attestation**).
  
- **Trusted Bootstrapping (Making a cryptographic identity for a cloud node)**
+ **Registration (How do I know that I am talking to a valid/real TPM?)**
+ 
+Before any other services begin, Keylime must start with a registration process involving the hardware TPM and Keylime registrar. The hardware TPM must prove that it is a valid TPM to the Keylime registrar by first cryptographically giving its public AIK to the registrar. The registrar then asks to the TPM to decrypt a message with its private key, and stores the public AIK if the decrypted message is correct. By having a valid AIK, the registrar can verify a quote that is signed by the TPM.
+ 
+ **Trusted Bootstrapping (How do I give my cloud node an secret key/cryptographic identity?)**
  
  ![Trusted Bootstrapping p1](/assets/images/boot_p1.png)
 
@@ -73,7 +77,7 @@ What is in scope of the project:
 
 What is NOT in scope of the project:
 - Design and implement a virtual TPM from scratch
-- Communicate between the hardware TPM directly from the virtual TPM via deepquote function (possible in the Xen version of Keylime)
+- Communicate between the hardware TPM directly from the virtual TPM via deepquote function (possible only in the Xen version of Keylime)
 - Improve features of the Xen implementation
 
 ## Solution Concept
@@ -83,7 +87,7 @@ The main high-level system components of the Keylime extension are Keylime itsel
   - QEMU/KVM hypervisor
   - Hardware TPM
   - Libvert library
-  - Emulated/virtual TPM
+  - Emulated TPM
   - Keylime used by the user/tenant
     - Tenant Cloud Verifier
     - Tenant Registrar
@@ -145,11 +149,9 @@ Problems considered:
 
 Questions still needed to be answered:
 - Does the MOC provide a TPM for Keylime to utilize?
-- Which functions/code do we need to focus on editing?
-- What versions of TPM are supported by which hypervisors?
-- What are the implementation differences (in code) in TPM1.2 and TPM2.0?
-- What would be considered beyond the scope of this project?
+- Do we need to consider different versions of TPM and which can be supported?
 - What happens to the node/resources when the user is done using it? 
+- Will we need to emulated TPM for anything?
 
 ## References and Resources
 - About the project: 

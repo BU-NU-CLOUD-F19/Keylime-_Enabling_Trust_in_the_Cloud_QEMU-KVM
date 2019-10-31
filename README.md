@@ -122,17 +122,22 @@ The stretch goals of the Keylime extension are to implement the project in RUST,
   - Communicate between a tenant client and the Keylime verifier
 - Release 2
   - Plan out all elements that need to be modified and what modifications needed to be made
-  - Design a simple Merkle implementation
+  - Design a simple Merkle tree
+  - Established a simple communication method between two instances of Keylime (agent-agent connection) on a private network
 - Release 3
   - Set up components of the KVM system in a VM (via Vagrant) or container (via Docker)
   - Enable nested virtualization by making a nested VM inside the "host" VM
-  - Communicate with the software TPM (vTPM) on a QEMU/KVM hypervisor 
+  - Enable tenant verifier to talk to provider verifier
 - Release 4
-  - Extend trust from one hardware TPM to one QEMU/KVM vTPM
+  - Refine verifier-verifier interface
+  - Implement Merkle tree data structure into Keylime APIs
+  - Blueprint the registration process, share with open source community
+  - Debug all edits to the APIs
 - Release 5
-  - Extend trust from one hardware TPM to many QEMU/KVM vTPMs
+  - Test bootstrapping process
+  - Continue debugging
   - Performance enhancement
-  - Port Keylime extension to RUST
+  - Port Keylime extension to RUST?
 
 ## Presentation slides
 - Sprint 1: https://docs.google.com/presentation/d/1YRiCh9JLPN-RTcto8vccMqHcnGL8mvYgsJaDZAbDeK8/edit?usp=sharing
@@ -141,16 +146,13 @@ The stretch goals of the Keylime extension are to implement the project in RUST,
 
 ## Open Questions & Risks
 
-Problems considered:
-- vTPM is not isolated hardware, since it is stored on disk, and can be tampered with or spoofed. We need to extend trust from the hardware TPM to vTPM. 
-- TPM V2.0 is not backward compatible with previous TPM. Since Keylime is developed based on former version(V1.2), it also need to be upgraded to be compatible with TPM V2.0.
-- Current implementation of Keylime is written in Python but want to port to a Rust, a more secure language.
-
 Questions still needed to be answered:
 - Does the MOC provide a TPM for Keylime to utilize?
 - Do we need to consider different versions of TPM and which can be supported?
 - What happens to the node/resources when the user is done using it? 
 - Will we need to emulated TPM for anything?
+- How should we unravel the Merkle tree?
+- Can one verifier be used for multiple agents/nodes?
 
 ## References and Resources
 - About the project: 

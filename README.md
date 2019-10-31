@@ -144,6 +144,8 @@ The stretch goals of the Keylime extension are to implement the project in RUST,
 
 - Sprint 2: https://docs.google.com/presentation/d/1LFivYyhJpFX_lmF8cqmzGQFmB9MhNZT_oJUljYssW3Q/edit?usp=sharing
 
+- Sprint 3: https://docs.google.com/presentation/d/1MnS7aXz9ixZjlN98U2TjNehpFPX2v_VejRKxmizOrq4/edit?usp=sharing
+
 ## Open Questions & Risks
 
 Questions still needed to be answered:

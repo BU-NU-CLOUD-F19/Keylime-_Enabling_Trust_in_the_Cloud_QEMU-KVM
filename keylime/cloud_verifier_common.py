@@ -313,6 +313,8 @@ def prepare_get_quote(agent):
         'nonce': agent['nonce'],
         'mask': agent['tpm_policy']['mask'],
         'vmask': agent['vtpm_policy']['mask'],
+        'provider_ip': agent['provider_ip'],
+        'provider_port': agent['provider_port']
     }
 
     return params

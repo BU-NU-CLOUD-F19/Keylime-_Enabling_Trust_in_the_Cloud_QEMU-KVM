@@ -68,6 +68,11 @@ class Tenant():
     cloudverifier_ip = None
     cloudverifier_port = None
 
+    providerverifier_ip = None
+    providerverifier_port = None
+
+    need_provider_quote = None
+
     cloudagent_ip = None
     cv_cloudagent_ip = None
     cloudagent_port = None
@@ -460,6 +465,9 @@ class Tenant():
             'v': b64_v,
             'cloudagent_ip': self.cv_cloudagent_ip,
             'cloudagent_port': self.cloudagent_port,
+            'providerverifier_ip' : self.providerverifier_ip,
+            'providerverifier_port' : self.providerverifier_port,
+            'need_provider_quote' : self.need_provider_quote,
             'tpm_policy': json.dumps(self.tpm_policy),
             'vtpm_policy':json.dumps(self.vtpm_policy),
             'ima_whitelist':json.dumps(self.ima_whitelist),
@@ -758,6 +766,9 @@ def main(argv=sys.argv):
     parser.add_argument('--tpm_policy',action='store',dest='tpm_policy',default=None,help="Specify a TPM policy in JSON format. e.g., {\"15\":\"0000000000000000000000000000000000000000\"}")
     parser.add_argument('--vtpm_policy',action='store',dest='vtpm_policy',default=None,help="Specify a vTPM policy in JSON format")
     parser.add_argument('--verify',action='store_true',default=False,help='Block on cryptographically checked key derivation confirmation from the agent once it has been provisioned')
+    parser.add_argument('-pv','--target_provider_ip',action='store',default=None,dest='provider_ip',help='the IP of the provider verifier')
+    parser.add_argument('-pvp','--provider_verifier_port',action='store',default = 0,dest='provider_port',help='the port of the provider verifier')
+    parser.add_argument('-npq','--need_provider_quote',action='store',default = False,dest='provider_quote',help='the port of the provider verifier')
 
     if common.DEVELOP_IN_ECLIPSE and len(argv)==1:
         ca_util.setpassword('default')
@@ -797,6 +808,16 @@ def main(argv=sys.argv):
 
     if args.verifier_ip is not None:
         mytenant.cloudverifier_ip = args.verifier_ip
+
+    if args.provider_ip is not None:
+        mytenant.providerverifier_ip = args.provider_ip
+
+    if args.provider_port is not None: 
+        mytenant.providerverifier_port = args.provider_port
+
+    if args.provider_quote is not False: 
+        mytenant.need_provider_quote = args.provider_quote
+
 
     if args.command=='add':
         mytenant.init_add(vars(args))

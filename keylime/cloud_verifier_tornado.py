@@ -260,6 +260,8 @@ class AgentsHandler(BaseHandler):
                     d['v'] = json_body['v']
                     d['ip'] = json_body['cloudagent_ip']
                     d['port'] = int(json_body['cloudagent_port'])
+                    d['provider_ip'] = json_body['providerverifier_ip']
+                    d['provider_port'] = int(json_body['providerverifier_port'])
                     d['operational_state'] = cloud_verifier_common.CloudAgent_Operational_State.START
                     d['public_key'] = ""
                     d['tpm_policy'] = json_body['tpm_policy']
@@ -279,7 +281,7 @@ class AgentsHandler(BaseHandler):
                     # ================
                     # d['provider_ip'] = ""
                     # d['provider_verifier_port'] = ""
-                    d['need_provider_quote'] = True
+                    d['need_provider_quote'] = json_body['need_provider_quote']
                     # ================
                     
 
@@ -365,11 +367,11 @@ class AgentsHandler(BaseHandler):
         partial_req = "1"
         if need_pubkey:
             partial_req = "0"
-
+        
         res = tornado_requests.request("GET",
                                     "http://%s:%d/quotes/integrity?nonce=%s&mask=%s&vmask=%s&partial=%s"%(agent['ip'],agent['port'],params["nonce"],params["mask"],params['vmask'],partial_req), context=None)
         response = await res
-
+        
         if response.status_code !=200:
             # this is a connection error, retry get quote
             if response.status_code == 599:
@@ -408,21 +410,29 @@ class AgentsHandler(BaseHandler):
         params = cloud_verifier_common.prepare_get_quote(agent)
         agent['operational_state'] = cloud_verifier_common.CloudAgent_Operational_State.GET_PROVIDER_QUOTE
         # DEBUG
-        print("invoke_get_prov_quote")
+        logger.info("invoke_get_prov_quote")
         # TODO: hardcoding provider ip addr, need to read this info somewhere
-        url = "http://%s:%d/verifier?nonce=%s&mask=%s&vmask=%s"%("10.0.2.4",8881,params["nonce"],params["mask"],params['vmask'])
+        logger.info(params['provider_ip'])
+        logger.info(params['provider_port'])
+        
+        url = "http://%s:%d/verifier?nonce=%s&mask=%s&vmask=%s"%(params['provider_ip'],params['provider_port'],params["nonce"],params["mask"],params['vmask'])
+        
         # print("requesting from tenant, url: ", url)
+       # try:
         res = tornado_requests.request("GET", url, context=None)
         response = await res
         print("waiting")
         print(response.body)
         print(response.status_code)
+
+        #except Exception as e:
+                   # print('error: ', e)
         # process response:
         if response.status_code !=200:
             if response.status_code == 599:
                 asyncio.ensure_future(self.process_agent(agent, cloud_verifier_common.CloudAgent_Operational_State.GET_PROVIDER_QUOTE_RETRY))
             else:
-                error = "Unexpected Get Quote response error for provider: " + "10.0.2.4:8881 " + ", Error: " + str(response.status_code)
+                error = "Unexpected Get Quote response error for provider: " + "10.0.0.11:8881 " + ", Error: " + str(response.status_code)
                 logger.critical(error)
                 asyncio.ensure_future(self.process_agent(agent, cloud_verifier_common.CloudAgent_Operational_State.FAILED))
         else:
@@ -435,32 +445,9 @@ class AgentsHandler(BaseHandler):
                 # TODO develop a mechanism to validate provider quote
                 # ===========check the quote============
                 # -------hardcoding provider verifier agent info---------
-                provider_agent = {'v': '6pffdsXraIoxcDc3QxVCJKJUqdAZTzle+XUdIV1rgOc=', 
-                'ip': '127.0.0.1', 'port': 9002, 
-                'operational_state': 3, 
-                'public_key': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApCVReaFJHqQl4kj0CCtw\nqP0YOvW+4Y4x5d0chZvCF77EIZpPG+4sANhfxPaXkkPiyRrrpgtsFMNPQWhDTgWE\n7hCCQeBXAQc3SUn+o2FmuN5xGYHoEBXjeZQrUUJN8kTqEtrftUgoBRfXfQauNRLE\nmxBpotLnuLOIWyBtPAzjcX4tvQOki+Cg5gZBRbwpSBmuigoto53+ZTZ4gd5K0yBz\n9sZt6jru/OAlpMbm5XO0qtbgW6JpdE/4+JPfF+SHcL7dJesGMtorPLNodKRUlVAr\nVk1YW7g7+dZZZ+esABwPpTsnWyykdxHquWY5in4p4cwgsFVoBkr7pgstT4FjmUty\nlQIDAQAB\n-----END PUBLIC KEY-----\n', 
-                'tpm_policy': {'22': ['0000000000000000000000000000000000000001', '0000000000000000000000000000000000000000000000000000000000000001', '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001', 'ffffffffffffffffffffffffffffffffffffffff', 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff', 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'], '15': ['0000000000000000000000000000000000000000', '0000000000000000000000000000000000000000000000000000000000000000', '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'], 'mask': '0x408000'}, 
-                'vtpm_policy': {'23': ['ffffffffffffffffffffffffffffffffffffffff', '0000000000000000000000000000000000000000'], '15': ['0000000000000000000000000000000000000000'], 'mask': '0x808000'}, 
-                'metadata': {}, 
-                'ima_whitelist': {}, 
-                'revocation_key': '', 
-                'tpm_version': 2, 
-                'accept_tpm_hash_algs': ['sha512', 'sha384', 'sha256', 'sha1'], 
-                'accept_tpm_encryption_algs': ['ecc', 'rsa'], 
-                'accept_tpm_signing_algs': ['ecschnorr', 'rsassa'], 
-                'hash_alg': 'sha256', 
-                'enc_alg': 'rsa', 
-                'sign_alg': 'rsassa', 
-                'need_provider_quote': False, 
-                'registrar_keys': {'aik': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1YDgoAABaEBMtDzZ7u0q\nD1MZpwxP0QGzDhs54F7iYt3Vee8x86EArvV9qnzylGu6JhQ+vc9VS6K6mZIDjUtc\nMdgXM5V6p2HDZveAr2w9aH4sCbVUNN8YcIp3G96WOzFcoa6k5Medt8LpAZjL9J7J\nhEFdwYhG4b4nVWP2YTHwsvEmpG7FBe46chWY46N3/spmvOi1NFQuzCz+oYQNZ/mG\nskBGQLO+zT+Fmv3sQHx/qPpxrLRtUrzQqWz3R6pyTUrn1FJcrFj2VDzs0zhc/WE2\nb2wvnR6IxoMsE/imRuJZXMlArT+ZpPEIYPmWnKZiU8Co7E5kxNjQ1HoQvC3yxhPM\n5QIDAQAB\n-----END PUBLIC KEY-----\n', 'ek': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0dLxdAABVJO6qxamjCMh\nyhWZgiFHZHnPEe0tMFyK3fNVr/w8lX9r+QOLxLmkT0IdgsEYtGZGefbD+qQl4O1s\nk25823Xzu5tEF8966rTdkfsv8CRrNaBLwWlnt/n+qjIoU3xZJMmR+mFfqTc3a6zV\nmPOYJstFtM8r4b9HPCUq6Mte/J3Wx4FxI9R4UrCUyiAeH++0QapIxuEGsVIYs92n\nGyvFQYBZFRU6cIt33iaqTrRCICJp+YblMnw54YJGAH2vTVQf6/fLAnQt5L1UfmTy\nR/ZA6advx8soekSBOIAW7XmV8Xp9mSquIHZdSXMJlcn/B35PU3BdkUtIYm5JuGGt\nPQIDAQAB\n-----END PUBLIC KEY-----\n', 'ekcert': 'emulator', 'regcount': 1}, 
-                'nonce': 'HjhabaRBE2Aiiyz5R0YH', 
-                'b64_encrypted_V': b'c6B/uXCDIPpeEnGu64vF92aWuDrGhMtKyt61eg/Am1y/TFbmKFvhsyCoAQr6WnJTjoinllwfE7ou22wc4DOyWWWMG7L/E94I8fu2ooxdcFY+a5W5tr6RFa1i54ogbR/SM4s0IR7si3FANk30P66Ifu2fTM5lXd9u+ly4hkdOpYQIvH82gCf/J+S0m9+VhHtP5q7CyQzzVqu6pqTRERTwW6DQ2GsAB26CPepD3YOlXFcmLMFssB4lyvRcWKZ7CUk4FB6jcVruneqJkzdLiWd8icgJHdl7qwKdniRuwZiXAIAJ7ARZqPp4M5oOmJgKoy555MxOAglxmgAx6HeZP8CqHg==', 
-                'provide_V': False, 'num_retries': 0, 
-                # 'pending_event': <TimerHandle when=4907.464535460628 IOLoop._run_callback(functools.par...7f4949a6b680>))>, 
-                'first_verified': True, 
-                'agent_id': 'D432FBB3-D2F1-4A97-9EF7-75BD81C00000'
-                }
-
+                provider_agent = {'v': 'a2SGIxSAH7Q4ONO8VdEkuoAUkzRbtbS9sZJs7B58U4U=', 'ip': '10.0.0.11', 'port': 9002, 'operational_state': 3, 'public_key': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5u8h2xu3+YPYDFAgJLZ2\ngzGB9uQOmJYjDXxqzV9+TAeWzxUhTHQMj/pHr/zoQlUzIzjyFbODjlHQHvfRjNv4\nEptBWWh6eQsr0JvJLZjrbALTk/fy3QGDuNU+DydmbzmmZmCbL6gbI/kdhy85gJvW\nM/Gd/vMAXFhZkRmZfnLHFi8Jz3SRIm1qBM8VCOdBE9kE3tSwsGBchwXPTNjlqftd\nXfhsYPcGib5H7D2AT0zJtfs54QMyPK5KmZ3SBAebYSawzYZb2LdDlH3V5Ejyjisn\nV81mm7qvWGEPFenE4YRDkVlOtLTKHsaxWA2E1rrj5dA6i9OBlljgnX87tajuW86n\n1wIDAQAB\n-----END PUBLIC KEY-----\n', 'tpm_policy': {'22': ['0000000000000000000000000000000000000001', '0000000000000000000000000000000000000000000000000000000000000001', '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001', 'ffffffffffffffffffffffffffffffffffffffff', 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff', 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'], '15': ['0000000000000000000000000000000000000000', '0000000000000000000000000000000000000000000000000000000000000000', '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'], 'mask': '0x408000'}, 'vtpm_policy': {'23': ['ffffffffffffffffffffffffffffffffffffffff', '0000000000000000000000000000000000000000'], '15': ['0000000000000000000000000000000000000000'], 'mask': '0x808000'}, 'metadata': {}, 'ima_whitelist': {}, 'revocation_key': '', 'tpm_version': 2, 'accept_tpm_hash_algs': ['sha512', 'sha384', 'sha256', 'sha1'], 'accept_tpm_encryption_algs': ['ecc', 'rsa'], 'accept_tpm_signing_algs': ['ecschnorr', 'rsassa'], 'hash_alg': 'sha256', 'enc_alg': 'rsa', 'sign_alg': 'rsassa', 'need_provider_quote': False, 'registrar_keys': {'aik': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjMEpdgAAg44drl8QtXbN\nFbmhnqQQPS6O5TTzu9LXMewHTF2aj3pLRzbTul3o08VpNryYZBwV1HI2fvDf3HTA\nMcuDb8YGWkV9PHpxNxNEKxja2nOwWKvVXHsn/VahXGwoIjgZz6GRmNvvbFVknPAP\nUMC5EW5b92X1H3BDrT8NDsExmN/+RoNCZnEe1rPuHknxM4QsOiAG/IxnUH3aJpuM\nxcBIam5Pe407yO93uO5kuR0UaudCNYib2qpXeZLVOZjOeXEWGn+/JWtv2ZGaHRch\nFqsk9fWJawbe6TcWRZdigezDx1XbeM1EYnKpMpscUjlCc4HkgqdijyLMA55bwZAg\nFwIDAQAB\n-----END PUBLIC KEY-----\n', 'ek': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0dLxdAABVJO6qxamjCMh\nyhWZgiFHZHnPEe0tMFyK3fNVr/w8lX9r+QOLxLmkT0IdgsEYtGZGefbD+qQl4O1s\nk25823Xzu5tEF8966rTdkfsv8CRrNaBLwWlnt/n+qjIoU3xZJMmR+mFfqTc3a6zV\nmPOYJstFtM8r4b9HPCUq6Mte/J3Wx4FxI9R4UrCUyiAeH++0QapIxuEGsVIYs92n\nGyvFQYBZFRU6cIt33iaqTrRCICJp+YblMnw54YJGAH2vTVQf6/fLAnQt5L1UfmTy\nR/ZA6advx8soekSBOIAW7XmV8Xp9mSquIHZdSXMJlcn/B35PU3BdkUtIYm5JuGGt\nPQIDAQAB\n-----END PUBLIC KEY-----\n', 'ekcert': 'emulator', 'regcount': 1}, 'nonce': 'H74paQ7ZS1Y3JzFPgMCB', 'b64_encrypted_V': b'EcSlafKjdWujPL2S+B32/pfX2yhl4RFSFILFSTogBBKD+v13lWV3dO8YwnjnkeeW6EZmtUWEtII+i8I7K1ReEgeNTJ5JNtWCR41o7XaJu3KtP8H5NljElPMMIMWDq2BUr10cFD8oWIGEByhG582kVFcjyQheoT7jWlUhCPnjXlENMvl2UpIgaBlC2ncU5U1gEyd1dWHzyX5l3X3un2+pUkrfG3vEHG5XwgjA4qOmsnxm4hwf36j/Tkqk/cqSk3OyLHc+yo6hKFHdVDAONEHqx/xtDDlrVextTSJ/1K0VIsY6KlSpsdt1tbwDlxGgl4iK/IOSVsXFYjtDwYqqTGPwow==', 'provide_V': False, 'num_retries': 0, 
+                #'pending_event': <TimerHandle when=919.0072853452099 IOLoop._run_callback(functools.par...7fed7eb11b90>))>, 
+                'first_verified': True, 'agent_id': 'D432FBB3-D2F1-4A97-9EF7-75BD81C00000'}
                 # -------------------------------------------------------
                 # def process_quote_response(agent, json_response):
                 tpm_version = result.get('tpm_version')

@@ -371,7 +371,7 @@ class AgentsHandler(BaseHandler):
         res = tornado_requests.request("GET",
                                     "http://%s:%d/quotes/integrity?nonce=%s&mask=%s&vmask=%s&partial=%s"%(agent['ip'],agent['port'],params["nonce"],params["mask"],params['vmask'],partial_req), context=None)
         response = await res
-        
+        logger.info("WERE WAITING FOR QUOTE FROM AGENT")
         if response.status_code !=200:
             # this is a connection error, retry get quote
             if response.status_code == 599:
@@ -417,7 +417,7 @@ class AgentsHandler(BaseHandler):
         
         url = "http://%s:%d/verifier?nonce=%s&mask=%s&vmask=%s"%(params['provider_ip'],params['provider_port'],params["nonce"],params["mask"],params['vmask'])
         
-        # print("requesting from tenant, url: ", url)
+        print("requesting from tenant, url: ", url)
        # try:
         res = tornado_requests.request("GET", url, context=None)
         response = await res
@@ -432,7 +432,7 @@ class AgentsHandler(BaseHandler):
             if response.status_code == 599:
                 asyncio.ensure_future(self.process_agent(agent, cloud_verifier_common.CloudAgent_Operational_State.GET_PROVIDER_QUOTE_RETRY))
             else:
-                error = "Unexpected Get Quote response error for provider: " + "10.0.0.11:8881 " + ", Error: " + str(response.status_code)
+                error = "Unexpected Get Quote response error for provider: " + params['provider_ip']+":"+str(params['provider_port'])+ ", Error: " + str(response.status_code)
                 logger.critical(error)
                 asyncio.ensure_future(self.process_agent(agent, cloud_verifier_common.CloudAgent_Operational_State.FAILED))
         else:

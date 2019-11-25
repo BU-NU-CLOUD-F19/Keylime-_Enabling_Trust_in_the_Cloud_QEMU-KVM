@@ -19,13 +19,13 @@ def request(method, url, port, params=None, data=None,context=None):
         conn =  http.client.HTTPSConnection(
             url,
             port,
-            context=context,
-            timeout=5)
+            context=context)
+            #timeout=5)
     else:
         conn =  http.client.HTTPConnection(
             url,
-            port,
-            timeout=5)
+            port)
+            #timeout=5)
 
     while True:
         counter += 1

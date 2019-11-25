@@ -29,6 +29,7 @@ import sys
 import time
 import zipfile
 import json
+import requests
 
 try:
     import simplejson as json
@@ -614,9 +615,15 @@ class Tenant():
             try:
                 #params = '/quotes/identity?nonce=%s'%(self.nonce)
                 params = f'/quotes/identity?nonce={self.nonce}'
-                response = httpclient_requests.request("GET", "%s"%(self.cloudagent_ip), self.cloudagent_port, params=params, context=None)
+                response =  httpclient_requests.request("GET", "%s"%(self.cloudagent_ip), self.cloudagent_port, params=params, context=None)
+                #response = tornado_requests.request("GET", "%s:%s"%(self.cloudagent_ip, self.cloudagent_port), params=params, context=None)
+                #logger.debug(response_body)
                 response_body = json.loads(response.read().decode())
+                logger.debug(response)
+                logger.debug("This is probably Empty")
+                
             except Exception as e:
+                logger.debug(e); 
                 if response == 503 or 504:
                     numtries+=1
                     maxr = config.getint('tenant','max_retries')
@@ -790,6 +797,7 @@ def main(argv=sys.argv):
 
     if args.agent_uuid is not None:
         mytenant.agent_uuid = args.agent_uuid
+        
         # if the uuid is actually a public key, then hash it
         if mytenant.agent_uuid.startswith('-----BEGIN PUBLIC KEY-----'):
             mytenant.agent_uuid = hashlib.sha256(mytenant.agent_uuid).hexdigest()

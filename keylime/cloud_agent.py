@@ -83,6 +83,8 @@ class Handler(BaseHTTPRequestHandler):
         """
 
         logger.info('GET invoked from ' + str(self.client_address)  + ' with uri:' + self.path)
+        logger.info('THREAD ID' + threading.currentThread().getName())
+
 
         rest_params = common.get_restful_params(self.path)
         if rest_params is None:
@@ -165,6 +167,7 @@ class Handler(BaseHTTPRequestHandler):
                         ml = f.read()
                     response['ima_measurement_list']=ml
 
+            #time.sleep(5)
             common.echo_json_response(self, 200, "Success", response)
             logger.info('GET %s quote returning 200 response.'%(rest_params["quotes"]))
             return
@@ -402,7 +405,7 @@ class CloudAgentHTTPServer(ThreadingMixIn, HTTPServer):
 
     def add_V(self, v):
         """Threadsafe method for adding a U value received from the Cloud Verifier
-        Do not modify u_set of v_set directly.
+        Do not modify u_set or v_set directly.
         """
         with uvLock:
             # be very careful printing K, U, or V as they leak in logs stored on unprotected disks

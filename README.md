@@ -157,6 +157,8 @@ Questions still needed to be answered:
 - Will we need to emulated TPM for anything?
 - How should we unravel the Merkle tree?
 - Can one verifier be used for multiple agents/nodes?
+- How to register VTPMs on Tenant agent nodes with provider Agent's AIK_pub
+- Do we share the Merkle Tree with all instances? 
 
 ## References and Resources
 - About the project: 

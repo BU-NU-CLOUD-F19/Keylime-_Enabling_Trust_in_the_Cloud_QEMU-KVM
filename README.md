@@ -1,17 +1,17 @@
 ﻿# Keylime: Enabling Trust in the Cloud - QEMU/KVM
 
 
-## Project Background
+## Project Background and Current Solutions
 In cloud computing, users running applications on Infrastructure-as-a-Service (IaaS) nodes can not verify for themselves that the resources they are using are secure. Because of this, they must fully trust the cloud service provider that nothing (from the hypervisors to the OS) has been compromised. This raises a concern, because the user does not know if the resources are controlled by malicious insiders and rogue organizations. 
 
 A Trusted Platform Module (TPM) is a hardware chip with secure key generation and storage functionalities. It contains Platform Configuration Registers (PCRs) that are able to store measurements of system integrity in firmwares, hypervisors, OSes, etc. Through this, it can verify if the system has been altered or tampered with. However, using TPMs is complex, can lead to slower performance, and not compatible with virtualized machines (because it is a physical device).
 
 Keylime is a bootstrapping and integrity management software tool that connects the security features of TPMs to cloud computing.  It allows users to verify that every level of their remote system has not been compromised or tampered with, without having to deal with the drawbacks mentioned before. It also continuously measures system integrity by monitoring the cloud (IaaS) nodes, also known as Keylime agents. 
 
-The Keylime system includes four key executable components: a cloud verifier that periodically checks the integrities of the nodes, a registrar that stores public attestation identity keys (AIKs) of TPMs, an agent node that is able to communicate with the TPM, and the tenant client that a user can use to interact with the three previously mentioned components.
+The Keylime system includes four main executable components: a cloud verifier that periodically checks the integrities of the nodes, a registrar that stores public attestation identity keys (AIKs) of TPMs, an agent node that is able to communicate with the TPM, and the tenant client that a user can use to interact with the three previously mentioned components.
 
-Keylime consists of one minor service (**registration**) and two main services (**trusted bootstrapping** and **continuous attestation**).
- 
+Keylime consists of two main services (**trusted bootstrapping** and **continuous attestation**). A **registration** phase/minor service is needed before the two main services can be used. 
+  
  **Registration (How do I know that I am talking to a valid/real TPM?)**
  
 Before any other services begin, Keylime must start with a registration process involving the hardware TPM and Keylime registrar. The hardware TPM must prove that it is a valid TPM to the Keylime registrar by first cryptographically giving its public AIK to the registrar. The registrar then asks to the TPM to decrypt a message with its private key, and stores the public AIK if the decrypted message is correct. By having a valid AIK, the registrar can verify a quote that is signed by the TPM's AIK.
@@ -39,7 +39,7 @@ Once trust is established through the bootstrapping phase, Keylime needs to ensu
  
 The verifier will continuously request quotes (with nonces) from the cloud node/agent. Each request induces the node to retrieve a quote from its TPM (or vTPM). The quote is returned to verifier, which cryptographically verifies if the quote is valid. If it is invalid (denoting system state of the reporting node has somehow changed), the verifier issues a revocation notice to the certificate authority (tenant). Once tenant receives revocation notice, it should invalidate the affected nodes’ keys, effectively breaking all crypto related network connections and services for the node.
 
-Please note that the diagrams and procedures mentioned above are for the Xen implementation. Because the Xen implementation comes with a virtual TPM that is directly linked to the hardware TPM, Keylime can use a deepquote function to communicate directly with the hardware TPM for quotes.
+Please note that the diagrams and procedures mentioned above are for the **Xen** implementation. Because the Xen implementation comes with a virtual TPM that is directly linked to the hardware TPM, Keylime can use a deepquote function to communicate directly with the hardware TPM for quotes.
 
 ## Project Vision and Goals
 
@@ -47,7 +47,7 @@ Keylime: Enabling Trust in the Cloud - QEMU/KVM is an extension of the current i
 
 1. Instantiate each component of Keylime (for KVM)  in a VM or container
 2. Investigate (and implement) a registration process for KVM
-3. Create a Merkle tree implementation that will be used by the cloud verifier to handle many quote requests, and create an interface layer to abstract from the Merkle Tree layer
+3. Create a Merkle tree implementation that will be used by the cloud verifier to handle and batch up many quote requests, and create an interface layer to abstract from the Merkle Tree layer
 4. Create an interface for the tenant verifier to communicate with the cloud verifier
 
 These goals will be explained in the solution concept.
@@ -74,7 +74,6 @@ What is in scope of the project:
 - Edit APIs so that Keylime components can send the proper data needed to each other (Merkle trees, keys, etc.)
 
 What is NOT in scope of the project:
-- Design and implement a virtual TPM from scratch
 - Communicate between the hardware TPM directly from the virtual TPM via deepquote function (possible only in the Xen version of Keylime)
 - Improve features of the Xen implementation
 

@@ -419,11 +419,12 @@ def init_db(db_filename):
         'hash_alg': 'TEXT',
         'enc_alg': 'TEXT',
         'sign_alg': 'TEXT',
+        'quote_col': 'TEXT'
     }
 
     # these are the columns that contain json data and need marshalling
     json_cols_db = ['tpm_policy', 'vtpm_policy', 'metadata', 'ima_whitelist',
-                    'accept_tpm_hash_algs', 'accept_tpm_encryption_algs', 'accept_tpm_signing_algs']
+                    'accept_tpm_hash_algs', 'accept_tpm_encryption_algs', 'accept_tpm_signing_algs', 'quote_col']
 
     # in the form key : default value
     exclude_db = {
@@ -435,4 +436,5 @@ def init_db(db_filename):
         'pending_event': None,
         'first_verified': False,
     }
+    
     return keylime_sqlite.KeylimeDB(db_filename, cols_db, json_cols_db, exclude_db)

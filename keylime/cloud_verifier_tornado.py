@@ -27,6 +27,7 @@ import functools
 import time
 import tornado.ioloop
 import tornado.web
+import os
 from tornado import httpserver
 from tornado.httpclient import AsyncHTTPClient
 from tornado.httputil import url_concat
@@ -38,6 +39,10 @@ from keylime import cloud_verifier_common
 from keylime import revocation_notifier
 from keylime import tpm_obj  # testing library
 import threading
+
+import hashlib
+from merklelib import MerkleTree, beautify
+
 
 logger = keylime_logging.init_logging('cloudverifier')
 
@@ -51,6 +56,17 @@ if sys.version_info[0] < 3:
 
 config = configparser.ConfigParser()
 config.read(common.CONFIG_FILE)
+
+nonce_col = asyncio.Queue()
+
+# TEST merkle tree development
+def hashfunc(value):
+    # Convert to string because it doesn't like bytes
+    new_value = value
+    # hash = hashlib.sha256(new_value.encode('utf-8')).hexdigest()
+    return new_value
+
+tree = MerkleTree([],hashfunc)
 
 class BaseHandler(tornado.web.RequestHandler):
 
@@ -105,9 +121,12 @@ class AgentsHandler(BaseHandler):
         was not found, it either completed successfully, or failed.  If found, the agent_id is still polling
         to contact the Cloud Agent.
         """
+
         rest_params = common.get_restful_params(self.request.uri)
         # DEBUG
         # print("get a request with", rest_params)
+
+        global tree; 
 
         if rest_params is None:
             common.echo_json_response(self, 405, "Not Implemented: Use /agents/ interface")
@@ -134,7 +153,7 @@ class AgentsHandler(BaseHandler):
         elif "verifier" in rest_params:
             # develope verifier api endpoint
             # DEBUG
-            print("entering the verifier with: ", rest_params)
+            #print("entering the verifier with: ", rest_params)
             partial_req = "1"  # don't need a pub key
             # TODO test threading and blocking
             # print("Thread: ", threading.current_thread())
@@ -145,11 +164,48 @@ class AgentsHandler(BaseHandler):
             # actually should figure out which agent the corresponding provider to the tenant who send the request
             agent = self.db.get_agent_ids()
             new_agent = self.db.get_agent(agent[0])
+            
+            try:
+                await nonce_col.put(rest_params["nonce"])
+            except Exception as e:
+                print('error: ',e)
+            
+            new_agent['quote_col'].append(rest_params["nonce"])
+            
+            self.db.update_all_agents('quote_col', new_agent['quote_col'])
+            
+            await asyncio.sleep(10)
+
+            try:
+                agent = self.db.get_agent_ids()
+                #print(agent)
+                new_agent2 = self.db.get_agent(agent[0])
+                print(nonce_col.qsize(),len(new_agent2['quote_col']),os.getpid())
+
+                #print(new_agent2['quote_col'],os.getpid())
+
+                print("Making Merkle Tree")
+
+                tree = MerkleTree([], hashfunc)
+                for nonce in range(nonce_col.qsize()):
+                    temp = nonce_col.get()
+                    t = await temp
+                    tree.append(t)
+                    await nonce_col.put(t)
+                  
+                    #nonce_col.tak_done()
+                beautify(tree)
+                #print(os.getpid())
+            except Exception as e: 
+                print('error:  ', e)
+            
+        
+            rest_params['nonce'] = tree.merkle_root 
             url = "http://%s:%d/quotes/integrity?nonce=%s&mask=%s&vmask=%s&partial=%s"%(new_agent['ip'],new_agent['port'],rest_params["nonce"],rest_params["mask"],rest_params['vmask'],partial_req)
-            # Launch GET request
-            # asyncio.ensure_future(provider_get_quote(url))
+            
             res = tornado_requests.request("GET", url, context=None)            
-            response = await res 
+            response = await res
+
             json_response = json.loads(response.body)
             common.echo_json_response(self, 200, "Success", json_response["results"])
         else:
@@ -276,15 +332,11 @@ class AgentsHandler(BaseHandler):
                     d['hash_alg'] = ""
                     d['enc_alg'] = ""
                     d['sign_alg'] = ""
-                    # TODO: global setting in keylime.conf to assign these parameters
-                    # currently hardcoding here
-                    # ================
-                    # d['provider_ip'] = ""
-                    # d['provider_verifier_port'] = ""
                     d['need_provider_quote'] = json_body['need_provider_quote']
+                    d['quote_col'] = []
                     # ================
+                   
                     
-
                     new_agent = self.db.add_agent(agent_id,d)
 
                     # don't allow overwriting
@@ -363,7 +415,7 @@ class AgentsHandler(BaseHandler):
         params = cloud_verifier_common.prepare_get_quote(agent)
         # why this line is missing is file
         agent['operational_state'] = cloud_verifier_common.CloudAgent_Operational_State.GET_QUOTE
-
+        
         partial_req = "1"
         if need_pubkey:
             partial_req = "0"
@@ -371,7 +423,7 @@ class AgentsHandler(BaseHandler):
         res = tornado_requests.request("GET",
                                     "http://%s:%d/quotes/integrity?nonce=%s&mask=%s&vmask=%s&partial=%s"%(agent['ip'],agent['port'],params["nonce"],params["mask"],params['vmask'],partial_req), context=None)
         response = await res
-        logger.info("WERE WAITING FOR QUOTE FROM AGENT")
+        
         if response.status_code !=200:
             # this is a connection error, retry get quote
             if response.status_code == 599:
@@ -420,10 +472,12 @@ class AgentsHandler(BaseHandler):
         print("requesting from tenant, url: ", url)
        # try:
         res = tornado_requests.request("GET", url, context=None)
+
         response = await res
+
         print("waiting")
-        print(response.body)
-        print(response.status_code)
+       # print(response.body)
+        #print(response.status_code)
 
         #except Exception as e:
                    # print('error: ', e)
@@ -445,11 +499,7 @@ class AgentsHandler(BaseHandler):
                 # TODO develop a mechanism to validate provider quote
                 # ===========check the quote============
                 # -------hardcoding provider verifier agent info---------
-                provider_agent = {'v': 'a2SGIxSAH7Q4ONO8VdEkuoAUkzRbtbS9sZJs7B58U4U=', 'ip': '10.0.0.11', 'port': 9002, 'operational_state': 3, 'public_key': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA5u8h2xu3+YPYDFAgJLZ2\ngzGB9uQOmJYjDXxqzV9+TAeWzxUhTHQMj/pHr/zoQlUzIzjyFbODjlHQHvfRjNv4\nEptBWWh6eQsr0JvJLZjrbALTk/fy3QGDuNU+DydmbzmmZmCbL6gbI/kdhy85gJvW\nM/Gd/vMAXFhZkRmZfnLHFi8Jz3SRIm1qBM8VCOdBE9kE3tSwsGBchwXPTNjlqftd\nXfhsYPcGib5H7D2AT0zJtfs54QMyPK5KmZ3SBAebYSawzYZb2LdDlH3V5Ejyjisn\nV81mm7qvWGEPFenE4YRDkVlOtLTKHsaxWA2E1rrj5dA6i9OBlljgnX87tajuW86n\n1wIDAQAB\n-----END PUBLIC KEY-----\n', 'tpm_policy': {'22': ['0000000000000000000000000000000000000001', '0000000000000000000000000000000000000000000000000000000000000001', '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001', 'ffffffffffffffffffffffffffffffffffffffff', 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff', 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'], '15': ['0000000000000000000000000000000000000000', '0000000000000000000000000000000000000000000000000000000000000000', '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'], 'mask': '0x408000'}, 'vtpm_policy': {'23': ['ffffffffffffffffffffffffffffffffffffffff', '0000000000000000000000000000000000000000'], '15': ['0000000000000000000000000000000000000000'], 'mask': '0x808000'}, 'metadata': {}, 'ima_whitelist': {}, 'revocation_key': '', 'tpm_version': 2, 'accept_tpm_hash_algs': ['sha512', 'sha384', 'sha256', 'sha1'], 'accept_tpm_encryption_algs': ['ecc', 'rsa'], 'accept_tpm_signing_algs': ['ecschnorr', 'rsassa'], 'hash_alg': 'sha256', 'enc_alg': 'rsa', 'sign_alg': 'rsassa', 'need_provider_quote': False, 'registrar_keys': {'aik': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjMEpdgAAg44drl8QtXbN\nFbmhnqQQPS6O5TTzu9LXMewHTF2aj3pLRzbTul3o08VpNryYZBwV1HI2fvDf3HTA\nMcuDb8YGWkV9PHpxNxNEKxja2nOwWKvVXHsn/VahXGwoIjgZz6GRmNvvbFVknPAP\nUMC5EW5b92X1H3BDrT8NDsExmN/+RoNCZnEe1rPuHknxM4QsOiAG/IxnUH3aJpuM\nxcBIam5Pe407yO93uO5kuR0UaudCNYib2qpXeZLVOZjOeXEWGn+/JWtv2ZGaHRch\nFqsk9fWJawbe6TcWRZdigezDx1XbeM1EYnKpMpscUjlCc4HkgqdijyLMA55bwZAg\nFwIDAQAB\n-----END PUBLIC KEY-----\n', 'ek': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0dLxdAABVJO6qxamjCMh\nyhWZgiFHZHnPEe0tMFyK3fNVr/w8lX9r+QOLxLmkT0IdgsEYtGZGefbD+qQl4O1s\nk25823Xzu5tEF8966rTdkfsv8CRrNaBLwWlnt/n+qjIoU3xZJMmR+mFfqTc3a6zV\nmPOYJstFtM8r4b9HPCUq6Mte/J3Wx4FxI9R4UrCUyiAeH++0QapIxuEGsVIYs92n\nGyvFQYBZFRU6cIt33iaqTrRCICJp+YblMnw54YJGAH2vTVQf6/fLAnQt5L1UfmTy\nR/ZA6advx8soekSBOIAW7XmV8Xp9mSquIHZdSXMJlcn/B35PU3BdkUtIYm5JuGGt\nPQIDAQAB\n-----END PUBLIC KEY-----\n', 'ekcert': 'emulator', 'regcount': 1}, 'nonce': 'H74paQ7ZS1Y3JzFPgMCB', 'b64_encrypted_V': b'EcSlafKjdWujPL2S+B32/pfX2yhl4RFSFILFSTogBBKD+v13lWV3dO8YwnjnkeeW6EZmtUWEtII+i8I7K1ReEgeNTJ5JNtWCR41o7XaJu3KtP8H5NljElPMMIMWDq2BUr10cFD8oWIGEByhG582kVFcjyQheoT7jWlUhCPnjXlENMvl2UpIgaBlC2ncU5U1gEyd1dWHzyX5l3X3un2+pUkrfG3vEHG5XwgjA4qOmsnxm4hwf36j/Tkqk/cqSk3OyLHc+yo6hKFHdVDAONEHqx/xtDDlrVextTSJ/1K0VIsY6KlSpsdt1tbwDlxGgl4iK/IOSVsXFYjtDwYqqTGPwow==', 'provide_V': False, 'num_retries': 0, 
-                #'pending_event': <TimerHandle when=919.0072853452099 IOLoop._run_callback(functools.par...7fed7eb11b90>))>, 
-                'first_verified': True, 'agent_id': 'D432FBB3-D2F1-4A97-9EF7-75BD81C00000'}
-                # -------------------------------------------------------
-                # def process_quote_response(agent, json_response):
+                provider_agent ={'v': 'z0/fHklbJqjBd6cJZtPkc8yILcauKp0i5NYiBQlxtLI=', 'ip': '11.0.0.22', 'port': 9002, 'provider_ip': None, 'provider_port': 0, 'operational_state': 3, 'public_key': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx2rYWCSRMi8gfSa8aJbB\nSlxf7MdRJq5aGk7Ctu0FzLEGIwKa6NrjuL1Wvnx5AJ1SxJ/F/6b/QN7RRmylOdgA\nOVsROXTs7A+jI4yEdFKkp37Pd8+9DYlpZ3Karf782qyALaeuVOFWmjbigA/t7sqo\niGe2n5I4UvFCUBLRaVKIj2RoOlPBclhaseVQy+6xbt/OFK0hPwvtXcNvqpe5eFMG\n8yTqJePJmxhWW+tu7TDMu+K9RaHPenJSDC44SRonVYvSVCci5S2X1s0DRuJPgoih\npS8YWcXmodv+8p4zETFxSISfxq260veexzJqWky6t0DEt9hsUBpWlUpkYBIz0/2v\nfwIDAQAB\n-----END PUBLIC KEY-----\n', 'tpm_policy': {'22': ['0000000000000000000000000000000000000001', '0000000000000000000000000000000000000000000000000000000000000001', '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001', 'ffffffffffffffffffffffffffffffffffffffff', 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff', 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'], '15': ['0000000000000000000000000000000000000000', '0000000000000000000000000000000000000000000000000000000000000000', '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'], 'mask': '0x408000'}, 'vtpm_policy': {'23': ['ffffffffffffffffffffffffffffffffffffffff', '0000000000000000000000000000000000000000'], '15': ['0000000000000000000000000000000000000000'], 'mask': '0x808000'}, 'metadata': {}, 'ima_whitelist': {}, 'revocation_key': '', 'tpm_version': 2, 'accept_tpm_hash_algs': ['sha512', 'sha384', 'sha256', 'sha1'], 'accept_tpm_encryption_algs': ['ecc', 'rsa'], 'accept_tpm_signing_algs': ['ecschnorr', 'rsassa'], 'hash_alg': 'sha256', 'enc_alg': 'rsa', 'sign_alg': 'rsassa', 'need_provider_quote': False, 'quote_col': [], 'num_retries': 0, 'first_verified': True, 'agent_id': 'D432FBB3-D2F1-4A97-9EF7-75BD81C00000', 'nonce': '0BBbnhR7ti9zETQ6qs8i', 'registrar_keys': {'aik': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxaM0SgAA8g1CGVmUKgCQ\nf8/gue49oTRCpJgbaaG22Rx1XQtMCag2p356dHuo1xA/KSAZM9bQNvLh12B8lf/p\n0TlZkoDq6e+SBoV3CDHPaEgF6TH33WfQsudOackXt188QC4soNzHfRBxvOD6rSqo\nV2RkzOFwmAd9kiipNEMReolNslX9HgoNQgfLcb5Oam8/1B2ndtx83EXTk+80xPTN\nPM3PVI4GbExXcJuaGRsoHPp4mTB7NBr3IAuKGKbexvlDgDGieEPoK9p3O15GgHGS\nNYf87kTwFmt9+5WB/KbjKHUDe/tZil/BT2U4xXewz5waBDRmFIAZjRFKPrLmjzz9\nNQIDAQAB\n-----END PUBLIC KEY-----\n', 'ek': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0dLxdAABVJO6qxamjCMh\nyhWZgiFHZHnPEe0tMFyK3fNVr/w8lX9r+QOLxLmkT0IdgsEYtGZGefbD+qQl4O1s\nk25823Xzu5tEF8966rTdkfsv8CRrNaBLwWlnt/n+qjIoU3xZJMmR+mFfqTc3a6zV\nmPOYJstFtM8r4b9HPCUq6Mte/J3Wx4FxI9R4UrCUyiAeH++0QapIxuEGsVIYs92n\nGyvFQYBZFRU6cIt33iaqTrRCICJp+YblMnw54YJGAH2vTVQf6/fLAnQt5L1UfmTy\nR/ZA6advx8soekSBOIAW7XmV8Xp9mSquIHZdSXMJlcn/B35PU3BdkUtIYm5JuGGt\nPQIDAQAB\n-----END PUBLIC KEY-----\n', 'ekcert': 'emulator', 'regcount': 1}, 'b64_encrypted_V': b'sgfRiwxat7bXH1JQZtOqKBf30f0f/QyGC+hxUJFN/Dw8jcZ85aF/Q8nVtkYOsUohs7HDsI3r3hNmxRMAWXIvTjdCqtf7erMXCGmoaMN7bRdqVk7Qkt7/9djB9fikyS3gkomf91dJyLc+ogkl/hbExqG426cSWDdXiwydeDLmsKLtd9Ysj07wDkrB0KstG9CdpsTO3pChlXk68r+RFn0Tdn9Ch59ZNJxhoka0xt6ewBJqk8S9J3bmJQ458oU0XzyH1HywvrLrLGwpSx/tZtyQDHmCQPjY1f3vSpUAvTFzY4fflimtxU19T7l/AFF8o9GBwdqzQmpT7DzBp5xY4cGzhg==', 'provide_V': False}
                 tpm_version = result.get('tpm_version')
                 tpm = tpm_obj.getTPM(need_hw_tpm=False, tpm_version=tpm_version)
                 hash_alg = result.get('hash_alg')
@@ -678,7 +728,7 @@ def main(argv=sys.argv):
         revocation_notifier.start_broker()  # need to pass in the rev_port?
 
     sockets = tornado.netutil.bind_sockets(int(cloudverifier_port), address='0.0.0.0')
-    tornado.process.fork_processes(config.getint('cloud_verifier','multiprocessing_pool_num_workers'))
+    #tornado.process.fork_processes(config.getint('cloud_verifier','multiprocessing_pool_num_workers'))
     asyncio.set_event_loop(asyncio.new_event_loop())
     server = tornado.httpserver.HTTPServer(app,ssl_options=context)
     server.add_sockets(sockets)

@@ -20,6 +20,7 @@ violate any copyrights that exist in this work.
 
 import os
 import sqlite3
+import asyncio
 try:
     import simplejson as json
 except ImportError:
@@ -63,6 +64,7 @@ class KeylimeDB():
             cur = conn.cursor()
             createstr = "CREATE TABLE IF NOT EXISTS main("
             for key in sorted(self.cols_db.keys()):
+                
                 createstr += "%s %s, "%(key,self.cols_db[key])
             # lop off the last comma space
             createstr = createstr[:-2]+')'
@@ -90,7 +92,7 @@ class KeylimeDB():
         d = self.add_defaults(d)
 
         d['agent_id']=agent_id
-
+        
         with sqlite3.connect(self.db_filename) as conn:
             cur = conn.cursor()
             cur.execute('SELECT * from main where agent_id=?',(d['agent_id'],))
@@ -105,6 +107,7 @@ class KeylimeDB():
                 if key in self.json_cols_db and (isinstance(d[key],dict) or isinstance(d[key],list)):
                     v = json.dumps(d[key])
                 insertlist.append(v)
+                
 
             cur.execute('INSERT INTO main VALUES(?%s)'%(",?"*(len(insertlist)-1)),insertlist)
 
@@ -130,6 +133,7 @@ class KeylimeDB():
         return True
 
     def update_agent(self,agent_id, key, value):
+        print(os.getpid())
         if key not in list(self.cols_db.keys()):
             raise Exception("Database key %s not in schema: %s"%(key,list(self.cols_db.keys())))
 
@@ -138,6 +142,8 @@ class KeylimeDB():
             # marshall back to string
             if key in self.json_cols_db:
                 value = json.dumps(value)
+
+            print(value)
             cur.execute('UPDATE main SET %s = ? where agent_id = ?'%(key),(value,agent_id))
             conn.commit()
 

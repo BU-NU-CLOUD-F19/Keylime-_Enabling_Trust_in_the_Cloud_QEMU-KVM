@@ -12,13 +12,12 @@ def hashfunc(value):
 	return new_value
 
 def proof_to_string(proof):
-	proof_list = []
-	nodes = proof.hex_nodes
-	for node in nodes:
-	    new_data = bytes.fromhex(node).decode('utf-8')
-	    proof_list.append(new_data)
-	proof_string = '%s' % ','.join(map(str, proof_list))
-	# Return value is string of nodes delimited by commas
+	hashlist, typelist = proof_to_lists(proof)
+	hash_string = '%s' % ','.join(map(str, hashlist))
+	type_string = '%s' % ','.join(map(str, typelist))
+	proof_string = hash_string + ':' + type_string
+	# Return value is string of node info delimited by :
+	# Node info is delimited by ,
 	return proof_string
 
 def proof_to_lists(proof):
@@ -37,8 +36,9 @@ def lists_to_proof(hashlist, typelist):
 	return proof
 
 def string_to_proof(proof_string):
-	hashlist = proof_string.split(",")
-	typelist = [1] * len(hashlist)
+	hashstring, typestring = proof_string.split(":")
+	hashlist = hashstring.split(",")
+	typelist = typestring.split(",")
 	proof = lists_to_proof(hashlist, typelist)
 	return proof
 
@@ -47,18 +47,24 @@ def main():
 	tree = MerkleTree(data, hashfunc)
 	for i in ascii_lowercase:
   		tree.append(i)
+
 	beautify(tree)
+
+	print("Original verify_leaf_inclusion")
 	original_proof = tree.get_proof('a')
 	print(tree.verify_leaf_inclusion('a', original_proof))
 
+	print("Proof to lists/ Lists to proof verify_leaf_inclusion")
 	root = tree._root
 	proof_hashs, proof_types = proof_to_lists(original_proof)
 	remade_proof = lists_to_proof(proof_hashs, proof_types)
 	print(merklelib.verify_leaf_inclusion('a', remade_proof, hashfunc, utils.to_hex(root.hash)))
 
+	print("Proof to string test")
 	string_proof = proof_to_string(original_proof)
-	print("String Proof: " + string_proof)
+	print(type(string_proof) == type("hello"))
 
+	print("Proof to string/ String to proof verify_leaf_inclusion")
 	new_proof = string_to_proof(string_proof)
 	print(merklelib.verify_leaf_inclusion('a', remade_proof, hashfunc, utils.to_hex(root.hash)))
 

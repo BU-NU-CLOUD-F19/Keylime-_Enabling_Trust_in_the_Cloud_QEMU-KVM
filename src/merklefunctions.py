@@ -6,10 +6,10 @@ from string import ascii_lowercase
 import sys
 
 # Define custom hash function
-# May just need "return value" in our implementation
+# Define custom hash function
 def hashfunc(value):
-	new_value = value
-	return new_value
+	hash = hashlib.sha256(str(value).encode()).hexdigest()
+	return hash
 
 def proof_to_string(proof):
 	hashlist, typelist = proof_to_lists(proof)

@@ -1,6 +1,20 @@
 ﻿# Keylime: Enabling Trust in the Cloud - QEMU/KVM
-
-
+## Table of Contents
+* [Project Background and Current Solutions](#project-background-and-current-solutions)
+  * [Automated](#automated)
+  * [Manual](#manual)
+* [Project Vision and Goals](#project-vision-and-goals)
+* [Project Scope and Features](#project-scope-and-features)
+* [Project Users and Personas](#project-users-and-personas)
+  * [Configuring keylime](#configuring-keylime)
+  * [Running keylime](#running-keylime)
+  * [Provisioning](#provisioning)
+  * [Using keylime CA](#using-keylime-ca)
+* [Report a Security Vulnerability](#report-a-security-vulnerability)
+* [Meeting Information](#project-meetings)
+* [First Timers Support](#first-timers-support)
+* [Additional Reading](#additional-reading)
+* [License](#license)
 ## Project Background and Current Solutions
 In cloud computing, users running applications on Infrastructure-as-a-Service (IaaS) nodes can not verify for themselves that the resources they are using are secure. Because of this, they must fully trust the cloud service provider that nothing (from the hypervisors to the OS) has been compromised. This raises a concern, because the user does not know if the resources are controlled by malicious insiders and rogue organizations. 
 
@@ -52,7 +66,7 @@ Keylime: Enabling Trust in the Cloud - QEMU/KVM is an extension of the current i
 
 These goals will be explained in the solution concept.
 
-## Project Users/Personas
+## Project Users and Personas
 The Keylime extension will be used by cloud service providers, cloud service users, and developers.  It specifically targets open-source cloud users, since QEMU/KVM is the most popular open-source hypervisor. 
 
 Ideally, cloud service providers will run Keylime on their servers.  This would include having a Keylime verifier and registrar to monitor system integrity in addition to any other nodes. However, this still restricts integrity verification to cloud providers.  Keylime is mainly intended to benefit cloud service users. In the KVM implementation, both the user and service provider will run their own Keylime implementations and communicate with each other in a verifiable way to establish trust. This way, instead of just trusting the "all clear" message from cloud providers, users can see for themselves that the nodes they are using have not been compromised.
@@ -109,6 +123,7 @@ A host machine will have many VMs/cloud nodes up and running (each with an insta
 
 ### Change of Verifier State Machine
 
+
 ### REST API and Endpoint design
 
 ### Nonce Aggregation with Merkle tree
@@ -151,7 +166,9 @@ python3 setup.py install
 ```
 
 ### Deploying
-Since testing aggregating nonce need multiple tenant keylime instances, it's cumbersome and unnecessary to doing so. So we recomment to test the streamline of API and nonce aggregation seperatly.
+Since testing aggregating nonce need multiple tenant keylime instances, it's cumbersome and unnecessary to doing so. So we recommend to test the streamline of API and nonce aggregation seperatly.
+
+Testing streamline of API need two VMs with Keylime installed. Testing nonce aggregation only need on VMs and a testing bash script. 
 #### Streamline of Provider Verifier API
 1. Start two identical virtual machines with keylime installed. One is the provider and the other one is the tenant. Put these two machines into same network.  (if you are using Vagrant, skip this part)
 2. If you have run keylime before, remove the original DB file to resolve the incompatibility `rm /var/lib/keylime/cv_data.sqlite`, since the structure of DB has been changed.
@@ -167,6 +184,17 @@ Since testing aggregating nonce need multiple tenant keylime instances, it's cum
   vi. In the fourth terminal, run `keylime_tenant -t 127.0.0.1 -f /home/zycai/Keylime_test/keylime/README.md` @astoycos modify this command and explain how to set those parameters.
 5. From the first terminal in the tenant VM, that is the tenant verifier. You can see the provider's quote which the tenant verifier asked, and the result of the validity of the quote. 
 #### Nonce Aggregation with Merkle Tree
+1. Start a virtual machine with keylime installed.
+2. If you have run keylime before, remove the original DB file to resolve the incompatibility `rm /var/lib/keylime/cv_data.sqlite`, since the structure of DB has been changed.
+3. Run the Keylime instance in VM
+  i. Open 4 termianls with sudo mode
+  ii. run `tpm_serverd` to bring up tpm emulator
+  iii. In the first terminal, run `keylime_verifier`
+  iv. In the second terminal, run `keylime_registrar`
+  v. In the third terminal, run `keylime_agent`
+  vi. In the fourth terminal, run `keylime_tenant -t 127.0.0.1 -f /home/zycai/Keylime_test/keylime/README.md` @astoycos modify this command and explain how to set those parameters.
+4. Open a fifth terminal, run the testing bash script `name TBD` (@astoycos please complete this). The content of this script is using curl to send batch requests simultaneously to the endpoint with different nonces.
+5. Wait 5s (an exaggerated simulation of TPM hardware latency) and look inside the first terminal, the verifier, you can see nonces are aggregated, and form a merkle tree inside with these nonces.
 
 ## Release Planning
 - Release 1

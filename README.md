@@ -111,7 +111,7 @@ The main high-level system components of the Keylime extension are Keylime itsel
   
 ### Desired architecture
  
-![System diagram of Keylime implementation](/assets/images/keylime_scope.jpg)
+![System diagram of Keylime implementation](/assets/images/architecture.png)
 
 Instead of having the vTPM directly communicate with the TPM, as was done in the XEN implementation of Keylime, we will rather have the cloud provider deploy a second instance of Keylime on it's host machine/physical hardware and have the provider's Keylime components interact with the tenant's Keylime components. This is because the guest VM has a emulated TPM that has no link to the hardware TPM, so the tenant must communicate with the hardware TPM for quotes.
 

@@ -43,7 +43,7 @@ Please note that the diagrams and procedures mentioned above are for the **Xen**
 
 ## Project Vision and Goals
 
-Keylime: Enabling Trust in the Cloud - QEMU/KVM is an extension of the current implementation of the Keylime project. Because the Xen and KVM hypervisors differ in how a virtual/emulated TPM is set up for a VM, a new Keylime system structure is blueprinted specifically for KVM (see in solution concept). We will aim to develop missing functionalities that are needed for the registration and bootstrapping capabilities of the Keylime-KVM port. The high-level goals of this project are as follows:
+Keylime: Enabling Trust in the Cloud - QEMU/KVM is an extension of the current implementation of the Keylime project. Because the Xen and KVM hypervisors differ in how a virtual/emulated TPM is set up for a VM, a new Keylime system structure is blueprinted specifically for KVM (see in solution concept). There are two roles under the KVM solution framework, the cloud node with real hardware TPM on it is the **Provider**, and the virtual machine running on the node is called **Tenant**. We will aim to develop provider cloud verifier interface, which tenant verifier can ask for a quote from the hardware TPM. The high-level goals of this project are as follows:
 
 1. Instantiate each component of Keylime (for KVM)  in a VM or container
 2. Investigate (and implement) a registration process for KVM
@@ -82,9 +82,9 @@ The main high-level system components of the Keylime extension are Keylime itsel
 
 - System components
   - QEMU/KVM hypervisor
-  - Hardware TPM
+  - Hardware TPM (using TPM emulator instead when developing)
   - Libvert library
-  - Emulated TPM
+  - TPM Emulator
   - Keylime used by the user/tenant
     - Tenant Cloud Verifier
     - Tenant Registrar
@@ -95,24 +95,63 @@ The main high-level system components of the Keylime extension are Keylime itsel
     - Keylime agent (outside the VM/resource, used by the cloud provider)
   
   
-**Desired architecture**
+### Desired architecture
  
 ![System diagram of Keylime implementation](/assets/images/keylime_scope.jpg)
 
 Instead of having the vTPM directly communicate with the TPM, as was done in the XEN implementation of Keylime, we will rather have the cloud provider deploy a second instance of Keylime on it's host machine/physical hardware and have the provider's Keylime components interact with the tenant's Keylime components. This is because the guest VM has a emulated TPM that has no link to the hardware TPM, so the tenant must communicate with the hardware TPM for quotes.
 
-We will need to write an interface for the provider verifier to send the current root to the provider node and the node the result quote back. We need to still decide whether the Merkle Tree will live on the provider node or provider verifier. We need to write interface endpoints for the tenant verifier to communicate with the provider verifier to request quotes synchronously, and an interface layer to abstract from the Merkle Tree. We still need to figure out the registration process that will let both the provider registrar and tenant registrar identify valid TPMs, and how secure we can make this process.
+We will need to write an interface for the provider verifier to send the current root to the provider node and the node the result quote back. We need to still decide whether the Merkle Tree will live on the provider node or provider verifier. We need to write interface endpoints for the tenant verifier to communicate with the provider verifier to request quotes asynchronously, and an interface layer to abstract from the Merkle Tree. We still need to figure out the registration process that will let both the tenant registrar to know where and which one is its provider using IP address. Furthermore it also need the public AIK key from the provider to validate quote from hardaware TPM. Before we implement the registrartion process, we will using hardcoding provider info inside the tenant. 
 
 ![System diagram of Merkle Tree implementation](/assets/images/merkel_tree.jpg)
 
-A host machine will have many VMs/cloud nodes up and running (each with an instance of Keylime), and each tenant verifier will send quote requests with different nonces to the provider verifier. Because the hardware TPM is slow for processing and returning a quote, the provider verifier (or provider agent/node) can store all the nonces in a Merkle tree data structure. With the hashed data structure, the provider verifier can send a single quote request to the hardware TPM, and receive a quote. By unraveling the Merkle tree, the provider verifier can then send the proper nonce and a copy of the quote to all tenant verifiers that requested a quote.
+A host machine will have many VMs/cloud nodes up and running (each with an instance of Keylime), and each tenant verifier will send quote requests with different nonces to the provider verifier. Because the hardware TPM is slow for processing and returning a quote, the provider verifier (or provider agent/node) can store all the nonces in a Merkle tree data structure. With the hashed data structure, the provider verifier can send a single quote request to the hardware TPM with the root of the Merkle tree as the nonce, and receive a quote. By leveraging the proof function in the Merkle tree, the provider verifier can then send the quote, the root of Merkle tree and the according proof to all tenant verifiers that requested a quote.
+
+### Change of Verifier State Machine
+
+### REST API and Endpoint design
+
+### Nonce Aggregation with Merkle tree
+
+### Verification of quote
 
 ## Acceptance Criteria
 
-The minimum acceptance criteria for this project is a working Keylime port to QEMU/KVM in Python 3.6. What makes the Keylime port functional at a minimum is the ability to bootstrap and establish trust cryptographically between the user and cloud node via communications with the hardware TPM.
+The minimum acceptance criteria for this project is a working Keylime port to QEMU/KVM in Python 3.6. The MVP for our projects are: 
+- Create a streamlined API for communication between tenant verifier and provider verifier, including workflow modification in tenant verifier
+- Aggregate nonces from tenant verifier in the provider verifier with Merkle tree, ask for quote with root of the Merkle tree and send proof back alone with quote
+- Verify the quote quote from provider verifier
 
-The stretch goals of the Keylime extension are to implement the project in RUST, and to work on closing issues in the Keylime GitHub repo.
+The stretch goals of the Keylime extension is to implement registration process, clarify concepts on how to deliver a public AIK (attestation key) of the hardware TPM to the tenant registrar (involves a certificate authority and libvirt)
 
+## Installing and Deploying 
+
+### Installing 
+#### Vagrant (recomended)
+@astoycos call for help, remeber to upload batch request testing bash file.
+#### Virualbox with Fedora 30 image
+1. Download Fedora 30 image ![link](https://dl.fedoraproject.org/pub/fedora/linux/releases/30/Workstation/x86_64/iso/Fedora-Workstation-Live-x86_64-30-1.2.iso) (if link not work, https://dl.fedoraproject.org/pub/fedora/linux/releases/30/Workstation/x86_64/iso/Fedora-Workstation-Live-x86_64-30-1.2.iso)
+2. Create a virtual machine and install Fedora 30. _Fedora requires a minimum of 10GB disk, 1GB RAM, and a 1GHz processor to install and run successfully._
+3. download the keylime bash file which will help you finish the installation. 
+```bash
+wget https://gist.githubusercontent.com/lukehinds/539daa4374f5cc7939ab34e62be54382/raw/d663744210652d0f4647456e9a3d05033294d91a/keylime.sh
+chmod +x keylime.sh
+```
+4. Clone the our repo, change to branch andrew_multi_verifier
+```bash
+git clone https://github.com/BU-NU-CLOUD-F19/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM.git
+cd Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM/
+git branch andrew_multi_verifier
+```
+5. Run the setup file inside the sudo mode
+```bash
+sudo su
+enter your password:
+python3 setup.py install
+```
+
+### Deploying
+Since testing aggregating nonce need multiple tenant keylime instances, it's cumbersome and unnecessary 
 
 ## Release Planning
 - Release 1
@@ -136,7 +175,6 @@ The stretch goals of the Keylime extension are to implement the project in RUST,
   - Test bootstrapping process
   - Continue debugging
   - Performance enhancement
-  - Port Keylime extension to RUST?
 
 ## Presentation slides
 - Sprint 1: https://docs.google.com/presentation/d/1YRiCh9JLPN-RTcto8vccMqHcnGL8mvYgsJaDZAbDeK8/edit?usp=sharing
@@ -176,3 +214,6 @@ Questions still needed to be answered:
 
 - About vTPM
   - https://arxiv.org/pdf/1905.08493.pdf
+  
+## 
+  

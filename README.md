@@ -122,6 +122,17 @@ We will need to write an interface for the provider verifier to send the current
 A host machine will have many VMs/cloud nodes up and running (each with an instance of Keylime), and each tenant verifier will send quote requests with different nonces to the provider verifier. Because the hardware TPM is slow for processing and returning a quote, the provider verifier (or provider agent/node) can store all the nonces in a Merkle tree data structure. With the hashed data structure, the provider verifier can send a single quote request to the hardware TPM with the root of the Merkle tree as the nonce, and receive a quote. By leveraging the proof function in the Merkle tree, the provider verifier can then send the quote, the root of Merkle tree and the according proof to all tenant verifiers that requested a quote.
 
 ### Change of Verifier State Machine
+The verifier in the Keylime works in the schema of a state machine. There is a function inside called ![process_agent](https://github.com/BU-NU-CLOUD-F19/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM/blob/7ec8fd3050cd0cf7c50a73a0706cd741c42911b0/keylime/cloud_verifier_tornado.py#L549) which takes in the operational instruction. It perfroms state transforming according to the input and current state, and perform relevant operations.
+
+The former workflow of verifier is shown as blow:
+![Former state machine](/assets/images/state_machine_former.png)
+First is the bootstrapping process:
+When an agent is provisioned by the tenant though a POST request from tenant, like `keylime_tenant -t 127.0.0.1 -f /home/zycai/Keylime_test/keylime/README.md`.
+Then it starts to ask a quote from agent. If the request fails, it will retry until it successes or reach the maximum number of retries(user-defined).
+Next it will provide the V (first half of initial secret) to the agent. There is also a fail-retry handling for this step. 
+
+After providing V, it will enter the attestation process, which is the self-loop of `get_quote`.
+
 
 
 ### REST API and Endpoint design
@@ -147,11 +158,16 @@ The stretch goals of the Keylime extension is to implement registration process,
 #### Virualbox with Fedora 30 image
 1. Download Fedora 30 image ![link](https://dl.fedoraproject.org/pub/fedora/linux/releases/30/Workstation/x86_64/iso/Fedora-Workstation-Live-x86_64-30-1.2.iso) (if link not work, https://dl.fedoraproject.org/pub/fedora/linux/releases/30/Workstation/x86_64/iso/Fedora-Workstation-Live-x86_64-30-1.2.iso)
 2. Create a virtual machine and install Fedora 30. _Fedora requires a minimum of 10GB disk, 1GB RAM, and a 1GHz processor to install and run successfully._
-3. download the keylime bash file which will help you finish the installation. 
+3. Download the keylime bash file which will help you finish the installation. 
 ```bash
 wget https://gist.githubusercontent.com/lukehinds/539daa4374f5cc7939ab34e62be54382/raw/d663744210652d0f4647456e9a3d05033294d91a/keylime.sh
 chmod +x keylime.sh
 ```
+4. See if the TPM works
+ i. try `tpm_serverd`, if that works, you are free to go
+ ii. if you are not try `export TPM2TOOLS_TCTI="tabrmd:bus_name=com.intel.tss2.Tabrmd"`, then tried i. again
+ iii. if that still not work, try `systemctl status tpm2-abrmd`
+ 
 4. Clone the our repo, change to branch andrew_multi_verifier
 ```bash
 git clone https://github.com/BU-NU-CLOUD-F19/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM.git
@@ -174,7 +190,7 @@ Testing streamline of API need two VMs with Keylime installed. Testing nonce agg
 2. If you have run keylime before, remove the original DB file to resolve the incompatibility `rm /var/lib/keylime/cv_data.sqlite`, since the structure of DB has been changed.
 3. Run the Keylime instance in the provider first
   i. Open 4 termianls with sudo mode
-  ii. run `tpm_serverd` to bring up tpm emulator
+  ii. run `tpm_serverd` to bring up tpm emulator (if you have run this before, ignore)
   iii. In the first terminal, run `keylime_verifier`
   iv. In the second terminal, run `keylime_registrar`
   v. In the third terminal, run `keylime_agent`

@@ -151,7 +151,20 @@ python3 setup.py install
 ```
 
 ### Deploying
-Since testing aggregating nonce need multiple tenant keylime instances, it's cumbersome and unnecessary 
+Since testing aggregating nonce need multiple tenant keylime instances, it's cumbersome and unnecessary to doing so. So we recomment to test the streamline of API and nonce aggregation seperatly.
+#### Streamline of Provider Verifier API
+1. Start two identical virtual machines with keylime installed. One is the provider and the other one is the tenant. Put these two machines into same network.  (if you are using Vagrant, skip this part)
+2. If you have run keylime before, remove the original DB file to resolve the incompatibility `rm /var/lib/keylime/cv_data.sqlite`, since the structure of DB has been changed.
+3. Run the Keylime instance in the provider first
+  i. Open 4 termianls with sudo mode
+  ii. run `tpm_serverd` to bring up tpm emulator
+  iii. In the first terminal, run `keylime_verifier`
+  iv. In the second terminal, run `keylime_registrar`
+  v. In the third terminal, run `keylime_agent`
+  vi. In the fourth terminal, run `keylime_tenant -t 127.0.0.1 -f /home/zycai/Keylime_test/keylime/README.md` @astoycos modify this command and explain how to set those parameters.
+4. Then run the Keylime instance in the tenant
+  i-v. The same as how you start provider
+  vi. In the fourth terminal, run `keylime_tenant -t 127.0.0.1 -f /home/zycai/Keylime_test/keylime/README.md` @astoycos modify this command and explain how to set those parameters.
 
 ## Release Planning
 - Release 1

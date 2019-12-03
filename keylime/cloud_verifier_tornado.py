@@ -57,13 +57,14 @@ if sys.version_info[0] < 3:
 config = configparser.ConfigParser()
 config.read(common.CONFIG_FILE)
 
+# Used to asynchroniously collect simutanous nonces 
 nonce_col = asyncio.Queue()
 
-# TEST merkle tree development
+# Merkle tree development 
 def hashfunc(value):
     # Convert to string because it doesn't like bytes
-    new_value = value
-    # hash = hashlib.sha256(new_value.encode('utf-8')).hexdigest()
+    new_value = hashlib.sha1(str(value).encode()).hexdigest()
+    #new_value = value
     return new_value
 
 tree = MerkleTree([],hashfunc)
@@ -113,23 +114,14 @@ class AgentsHandler(BaseHandler):
         common.echo_json_response(self, 405, "HEAD not supported")
 
     async def get(self):
-        """This method handles the GET requests to retrieve status on agents from the Cloud Verifier.
-
-        Currently, only agents resources are available for GETing, i.e. /agents. All other GET uri's
-        will return errors. Agents requests require a single agent_id parameter which identifies the
-        agent to be returned. If the agent_id is not found, a 404 response is returned.  If the agent_id
-        was not found, it either completed successfully, or failed.  If found, the agent_id is still polling
-        to contact the Cloud Agent.
+        """This method handles the GET requests for Tenant verifiers to talk with Provider verifiers 
         """
-
         rest_params = common.get_restful_params(self.request.uri)
-        # DEBUG
-        # print("get a request with", rest_params)
-
+    
         global tree; 
 
         if rest_params is None:
-            common.echo_json_response(self, 405, "Not Implemented: Use /agents/ interface")
+            common.echo_json_response(self, 405, "Not Implemented: Use /agents/interface")
             return
 
         if "agents" in rest_params:
@@ -174,11 +166,11 @@ class AgentsHandler(BaseHandler):
             
             self.db.update_all_agents('quote_col', new_agent['quote_col'])
             
+            #Simulate busy TPM to give the illusion of Batched quotes 
             await asyncio.sleep(10)
 
             try:
                 agent = self.db.get_agent_ids()
-                #print(agent)
                 new_agent2 = self.db.get_agent(agent[0])
                 print(nonce_col.qsize(),len(new_agent2['quote_col']),os.getpid())
 
@@ -187,15 +179,15 @@ class AgentsHandler(BaseHandler):
                 print("Making Merkle Tree")
 
                 tree = MerkleTree([], hashfunc)
+                logger.debug("Concurrent Nonces: ")
                 for nonce in range(nonce_col.qsize()):
                     temp = nonce_col.get()
                     t = await temp
+                    logger.debug(t)
                     tree.append(t)
                     await nonce_col.put(t)
-                  
-                    #nonce_col.tak_done()
-                beautify(tree)
-                #print(os.getpid())
+
+                logger.debug(beautify(tree))
             except Exception as e: 
                 print('error:  ', e)
             
@@ -205,8 +197,9 @@ class AgentsHandler(BaseHandler):
             
             res = tornado_requests.request("GET", url, context=None)            
             response = await res
-
+           
             json_response = json.loads(response.body)
+           
             common.echo_json_response(self, 200, "Success", json_response["results"])
         else:
             common.echo_json_response(self, 400, "uri not supported")
@@ -462,7 +455,7 @@ class AgentsHandler(BaseHandler):
         params = cloud_verifier_common.prepare_get_quote(agent)
         agent['operational_state'] = cloud_verifier_common.CloudAgent_Operational_State.GET_PROVIDER_QUOTE
         # DEBUG
-        logger.info("invoke_get_prov_quote")
+        logger.info("invoking Teneant Verifier -> Provider Verifier communication")
         # TODO: hardcoding provider ip addr, need to read this info somewhere
         logger.info(params['provider_ip'])
         logger.info(params['provider_port'])

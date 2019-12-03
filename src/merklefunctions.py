@@ -8,10 +8,18 @@ import sys
 # Define custom hash function
 # May just need "return value" in our implementation
 def hashfunc(value):
-	# Convert to string because it doesn't like bytes
-	new_value = str(value)
-	hash = hashlib.sha256(new_value).hexdigest()
-	return hash
+	new_value = value
+	return new_value
+
+def proof_to_string(proof):
+	proof_list = []
+	nodes = proof.hex_nodes
+	for node in nodes:
+	    new_data = bytes.fromhex(node).decode('utf-8')
+	    proof_list.append(new_data)
+	proof_string = '%s' % ','.join(map(str, proof_list))
+	# Return value is string of nodes delimited by commas
+	return proof_string
 
 def proof_to_lists(proof):
 	hashlist = []
@@ -29,25 +37,22 @@ def lists_to_proof(hashlist, typelist):
 	return proof
 
 def main():
-	reload(sys)  
-	sys.setdefaultencoding('utf-8')
-
-	print(sys.getdefaultencoding())
-
 	data = []
 	tree = MerkleTree(data, hashfunc)
 	for i in ascii_lowercase:
   		tree.append(i)
-  	original_proof = tree.get_proof('a')
-  	print(tree.verify_leaf_inclusion('a', original_proof))
+	beautify(tree)
+	original_proof = tree.get_proof('a')
+	print(tree.verify_leaf_inclusion('a', original_proof))
 
-  	root = tree._root
+	root = tree._root
+	proof_hashs, proof_types = proof_to_lists(original_proof)
+	remade_proof = lists_to_proof(proof_hashs, proof_types)
+	print(merklelib.verify_leaf_inclusion('a', remade_proof, hashfunc, utils.to_hex(root.hash)))
 
-  	proof_hashs, proof_types = proof_to_lists(original_proof)
-  	remade_proof = lists_to_proof(proof_hashs, proof_types)
-  	print(merklelib.verify_leaf_inclusion('a', remade_proof, hashfunc, utils.to_hex(root.hash)))
+	string_proof = proof_to_string(original_proof)
+	print("String Proof: " + string_proof)
 
 if __name__ == '__main__':
-	test = 'b'
-	main()
-
+  test = 'b'
+  main()

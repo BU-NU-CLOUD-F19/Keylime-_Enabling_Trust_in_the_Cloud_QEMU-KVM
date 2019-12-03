@@ -165,6 +165,8 @@ Since testing aggregating nonce need multiple tenant keylime instances, it's cum
 4. Then run the Keylime instance in the tenant
   i-v. The same as how you start provider
   vi. In the fourth terminal, run `keylime_tenant -t 127.0.0.1 -f /home/zycai/Keylime_test/keylime/README.md` @astoycos modify this command and explain how to set those parameters.
+5. From the first terminal in the tenant VM, that is the tenant verifier. You can see the provider's quote which the tenant verifier asked, and the result of the validity of the quote. 
+#### Nonce Aggregation with Merkle Tree
 
 ## Release Planning
 - Release 1

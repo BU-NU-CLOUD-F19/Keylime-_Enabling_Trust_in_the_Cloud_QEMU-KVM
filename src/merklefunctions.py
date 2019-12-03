@@ -6,7 +6,8 @@ from string import ascii_lowercase
 import sys
 
 # Define custom hash function
-# Define custom hash function
+# This needs to be be hashlib.sha1(str(value).encode()).hexdigest()
+# if using in Keylime
 def hashfunc(value):
 	hash = hashlib.sha256(str(value).encode()).hexdigest()
 	return hash

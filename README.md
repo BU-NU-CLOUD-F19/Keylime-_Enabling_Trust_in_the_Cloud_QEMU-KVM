@@ -113,7 +113,7 @@ The main high-level system components of the Keylime extension are Keylime itsel
  
 ![System diagram of Keylime implementation](/assets/images/architecture.png)
 
-Instead of having the vTPM directly communicate with the TPM, as was done in the XEN implementation of Keylime, we will rather have the cloud provider deploy a second instance of Keylime on it's host machine/physical hardware and have the provider's Keylime components interact with the tenant's Keylime components. This is because the guest VM has a emulated TPM that has no link to the hardware TPM, so the tenant must communicate with the hardware TPM for quotes.
+Instead of having the vTPM directly communicate with the TPM, as was done in the XEN implementation of Keylime, we will rather have the cloud provider deploy a second instance of Keylime on it's host machine/physical hardware and have the provider's Keylime components interact with the tenant's Keylime components. This is because the guest VM has a emulated TPM that has no link to the hardware TPM, so the tenant must communicate with the hardware TPM for quotes to check the integrity of the underlining cloud node. 
 
 We will need to write an interface for the provider verifier to send the current root to the provider node and the node the result quote back. We need to still decide whether the Merkle Tree will live on the provider node or provider verifier. We need to write interface endpoints for the tenant verifier to communicate with the provider verifier to request quotes asynchronously, and an interface layer to abstract from the Merkle Tree. We still need to figure out the registration process that will let both the tenant registrar to know where and which one is its provider using IP address. Furthermore it also need the public AIK key from the provider to validate quote from hardaware TPM. Before we implement the registrartion process, we will using hardcoding provider info inside the tenant. 
 
@@ -133,6 +133,14 @@ Next it will provide the V (first half of initial secret) to the agent. There is
 
 After providing V, it will enter the attestation process, which is the self-loop of `get_quote`.
 
+Since we need to develope the process of getting provider's quote, we need to change the state-machine. The modified state-machine is shown below:
+![New_state_machine](/assets/images/state_machine_newer.png)
+
+The request for a provider quote happens in the bootstrapping process, so we add the new state `Get Provider's quote`in front of the `Provide V` state. We also add fail-retry handling for this state similarly.
+
+Inside the verifier, we have a agent dictionary to store all the information about the agent. Inside the dictionary, we add a key-value pair `need_provider_quote` to differentiate whether the agent is provider or not.  If the agent is cloud node, that means it is the provider, so `need_provider_quote` is False, it goes to the `Provide V` state directly. If the agent is a VM on cloud node, the `need_provider_quote` is Ture, it will go to the `Get Provider's quote` state to ask a quote from provider. Also, because we haven't implement the registration process, we manually enter the identity of agent through tenant terminal when provisioning the agent. 
+
+Inside the state `Get Provider's quote`, we send a GET request to the provider verifier, with parameters  nonce, mask and vmask. Since the registration processing has not implement yet, we use the ip address entered from the tenant to indicate where the provider is. How the endpoint in the provider verifier process the request will be discussed in the next section. After getting provider quote back, the tenant verifier will validate the quote (will discuss in the Verification of quote section). If the quote is invalid, it will go to the `Invalid Quote` state and stall there. Otherwise, it will continue following the bootstrapping process, go to the `Provide V` state.
 
 
 ### REST API and Endpoint design

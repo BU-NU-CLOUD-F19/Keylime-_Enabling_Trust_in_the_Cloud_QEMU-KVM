@@ -36,6 +36,12 @@ def lists_to_proof(hashlist, typelist):
 	proof = merklelib.AuditProof(nodepath)
 	return proof
 
+def string_to_proof(proof_string):
+	hashlist = proof_string.split(",")
+	typelist = [1] * len(hashlist)
+	proof = lists_to_proof(hashlist, typelist)
+	return proof
+
 def main():
 	data = []
 	tree = MerkleTree(data, hashfunc)
@@ -52,6 +58,9 @@ def main():
 
 	string_proof = proof_to_string(original_proof)
 	print("String Proof: " + string_proof)
+
+	new_proof = string_to_proof(string_proof)
+	print(merklelib.verify_leaf_inclusion('a', remade_proof, hashfunc, utils.to_hex(root.hash)))
 
 if __name__ == '__main__':
   test = 'b'

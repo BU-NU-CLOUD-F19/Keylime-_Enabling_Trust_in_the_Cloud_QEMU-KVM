@@ -144,7 +144,7 @@ Inside the state `Get Provider's quote`, we send a GET request to the provider v
 
 
 ### REST API and Endpoint design
-
+We design an API inside the verifier for tenant verifier to invoke when it need provider's quote. We define a new endpoint for the API `'provider's ip':'verifier port'/verifier?nonce=$=&mask=&vmask=`. The tenant uses the provider's IP address to locate the provider, passes parameters needed to generate a quote. After receiving requests from tenant verifiers, the provider verifier will aggregate nonce from multiple request from differe tenant verifiers and grows a Merkle tree (details will illustrate in the next section). Then the provider verifier will use the root of the Merkle tree as the new nonce to ask for a quote from its agent. After getting quote from its own agent, provider verifier will forward this quote back to tenant verifier along with the root of the Merkle tree and the proof of Merkle tree (illustrate in next dsection). And the tenant verifier will be able to verify the quote using the information above. 
 ### Nonce Aggregation with Merkle tree
 
 ### Verification of quote

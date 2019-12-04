@@ -107,8 +107,6 @@ def string_to_proof(proof_string):
     proof = lists_to_proof(hashlist, typelist)
     return proof
 
-tree = MerkleTree([],hashfunc)
-
 class BaseHandler(tornado.web.RequestHandler):
 
     def write_error(self, status_code, **kwargs):
@@ -201,8 +199,6 @@ class AgentsHandler(BaseHandler):
             try:
                 agent = self.db.get_agent_ids()
                 new_agent2 = self.db.get_agent(agent[0])
-                               
-                logger.info("Making Merkle Tree")
 
                 tree = MerkleTree([], hashfunc)
                 logger.info("Concurrent Nonces: " + str(nonce_col.qsize()))
@@ -212,8 +208,8 @@ class AgentsHandler(BaseHandler):
                     logger.debug(t)
                     tree.append(t)
                     await nonce_col.put(t)
-
-                logger.debug(beautify(tree))
+                logger.info("Making Merkle Tree in Provider Verifier")
+                logger.info(beautify(tree))
                 nonce_proof = tree.get_proof(rest_params['nonce'])
                 
 

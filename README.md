@@ -159,13 +159,13 @@ The minimum acceptance criteria for this project is a working Keylime port to QE
 
 The stretch goals of the Keylime extension is to implement registration process, clarify concepts on how to deliver a public AIK (attestation key) of the hardware TPM to the tenant registrar (involves a certificate authority and libvirt)
 
-## Installing and Deploying 
+## Installing and Deploying our Keylime Prototype 
 
 ### Environment Setup 
 
-To run our demonstrations the keylime environments can either be provisioned automatically with Vagrant or manually, instructions for both are shown below
+To run our demonstrations the keylime environments can either be provisioned automatically with Vagrant or manually via . virtualbox GUI, instructions for both are shown below
 
-We **STRONGLY recommend using Vagrant** and the automatic provisioning process, however Vagrant has been shown to cause some issues with windows users with this project 
+**We STRONGLY recommend using Vagrant** and the automatic provisioning process due to the complex setup keylime requires, however Vagrant has been shown to cause some issues with windows users on this project 
 
 #### Vagrant Setup (recomended)
 

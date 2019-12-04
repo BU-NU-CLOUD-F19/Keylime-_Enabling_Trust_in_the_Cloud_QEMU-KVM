@@ -161,9 +161,53 @@ The stretch goals of the Keylime extension is to implement registration process,
 
 ## Installing and Deploying 
 
-### Installing 
-#### Vagrant (recomended)
-@astoycos call for help, remeber to upload batch request testing bash file.
+### Environment Setup 
+
+To run our demonstrations the keylime environments can either be provisioned automatically with Vagrant or manually, instructions for both are shown below
+
+We **STRONGLY recommend using Vagrant** and the automatic provisioning process, however Vagrant has been shown to cause some issues with windows users with this project 
+
+#### Vagrant Setup (recomended)
+
+##### Virtualbox 
+
+Virtualbox must be installed to demo our prototype design it can be installed ![here](https://www.virtualbox.org/wiki/Downloads)
+
+##### TPM Version Control
+
+Either TPM version 1.2 or TPM 2.0 support can be configured by simply changing the role in the `playbook.yml` 
+
+For TPM 2.0 use:
+
+```
+  - ansible-keylime-tpm20
+```
+
+For TPM 1.20 use:
+
+```
+  - ansible-keylime-tpm12
+```
+
+Both roles will deploy the relevant TPM 1.2 Emulator (tpm4720) or 2.0 Emulator (IBM software TPM).
+
+**For this deployment of keylime we will be using the TPM 2.0 IBM emulator**
+
+##### Vagrant
+
+A `Vagrantfile` is available for automatically provisioning the vitual machines.
+
+1. Clone the branch `keylime_environment_setup` 
+2. In same directory as above clone branch `keylime_master'
+3. Navagate to `Vagrantfile` with `cd ansible-keylime-tpm-emulator`
+4. Run `vagrant --instances=2 --repo=/home/jdoe/keylime --cpus=2 --memory=2048  up --provider virtualbox --provision`
+     - make sure `repo` is set to the location of the cloned keylime directory from 2.
+     - This will create two VMs named `Keylime1` and `keylime2` 
+5. Connect to the two VMs by bringing up to terminals already navigated to the `ansible-keylime-tpm-emulator` directory and then run `vagrant ssh keylime1` in the first terminal and `vagrant ssh keylime2` in the second terminal 
+6. To finish delete the 
+     
+    
+
 #### Virualbox with Fedora 30 image
 1. Download Fedora 30 image ![link](https://dl.fedoraproject.org/pub/fedora/linux/releases/30/Workstation/x86_64/iso/Fedora-Workstation-Live-x86_64-30-1.2.iso) (if link not work, https://dl.fedoraproject.org/pub/fedora/linux/releases/30/Workstation/x86_64/iso/Fedora-Workstation-Live-x86_64-30-1.2.iso)
 2. Create a virtual machine and install Fedora 30. _Fedora requires a minimum of 10GB disk, 1GB RAM, and a 1GHz processor to install and run successfully._
@@ -190,11 +234,15 @@ enter your password:
 python3 setup.py install
 ```
 
-### Deploying
+### Deploying Demos
+For this project we built two demonstrations
+
+1. 
+
 Since testing aggregating nonce need multiple tenant keylime instances, it's cumbersome and unnecessary to doing so. So we recommend to test the streamline of API and nonce aggregation seperatly.
 
 Testing streamline of API need two VMs with Keylime installed. Testing nonce aggregation only need on VMs and a testing bash script. 
-#### Streamline of Provider Verifier API
+#### Str of Provider Verifier API
 1. Start two identical virtual machines with keylime installed. One is the provider and the other one is the tenant. Put these two machines into same network.  (if you are using Vagrant, skip this part)
 2. If you have run keylime before, remove the original DB file to resolve the incompatibility `rm /var/lib/keylime/cv_data.sqlite`, since the structure of DB has been changed.
 3. Run the Keylime instance in the provider first

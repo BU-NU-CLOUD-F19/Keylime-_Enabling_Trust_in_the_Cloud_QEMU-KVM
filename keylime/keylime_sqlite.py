@@ -133,7 +133,6 @@ class KeylimeDB():
         return True
 
     def update_agent(self,agent_id, key, value):
-        print(os.getpid())
         if key not in list(self.cols_db.keys()):
             raise Exception("Database key %s not in schema: %s"%(key,list(self.cols_db.keys())))
 
@@ -142,8 +141,6 @@ class KeylimeDB():
             # marshall back to string
             if key in self.json_cols_db:
                 value = json.dumps(value)
-
-            print(value)
             cur.execute('UPDATE main SET %s = ? where agent_id = ?'%(key),(value,agent_id))
             conn.commit()
 

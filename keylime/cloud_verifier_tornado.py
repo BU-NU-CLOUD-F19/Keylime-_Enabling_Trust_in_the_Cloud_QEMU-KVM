@@ -34,14 +34,18 @@ from tornado.httputil import url_concat
 import keylime.tornado_requests as tornado_requests
 
 from keylime import common
+from keylime import registrar_client
 from keylime import keylime_logging
 from keylime import cloud_verifier_common
 from keylime import revocation_notifier
 from keylime import tpm_obj  # testing library
+from keylime import httpclient_requests
 import threading
 
+import string
 import hashlib
-from merklelib import MerkleTree, beautify
+import merklelib
+from merklelib import MerkleTree, beautify, utils
 
 
 logger = keylime_logging.init_logging('cloudverifier')
@@ -59,13 +63,49 @@ config.read(common.CONFIG_FILE)
 
 # Used to asynchroniously collect simutanous nonces 
 nonce_col = asyncio.Queue()
+#need this variable to spin up registrar client and get keys from provider registrar
+Provider_agent = None
 
-# Merkle tree development 
+# Merkle tree development and transport functions 
+#functions for merkle tree 
 def hashfunc(value):
-    # Convert to string because it doesn't like bytes
-    new_value = hashlib.sha1(str(value).encode()).hexdigest()
-    #new_value = value
-    return new_value
+    hash = hashlib.sha1(str(value).encode()).hexdigest()
+    return hash
+
+def proof_to_string(proof):
+    hashlist, typelist = proof_to_lists(proof)
+    hash_string = '%s' % ','.join(map(str, hashlist))
+    type_string = '%s' % ','.join(map(str, typelist))
+    proof_string = hash_string + ':' + type_string
+    # Return value is string of node info delimited by :
+    # Node info is delimited by ,
+    return proof_string
+
+def proof_to_lists(proof):
+    hashlist = []
+    typelist = []
+    for node in proof._nodes:
+        hashlist.append(utils.to_hex(node.hash))
+        typelist.append(node.type)
+    return hashlist, typelist
+
+def lists_to_proof(hashlist, typelist):
+    nodepath = []
+    for nodehash, nodetype in zip(hashlist, typelist):
+        nodepath.append(merklelib.AuditNode(utils.from_hex(nodehash), nodetype))
+    proof = merklelib.AuditProof(nodepath)
+    return proof
+
+def string_to_proof(proof_string):
+    hashstring, typestring = proof_string.split(":")
+    if not hashstring:
+        hashlist = []
+        typelist = []
+    else:
+        hashlist = hashstring.split(",")
+        typelist = typestring.split(",")
+    proof = lists_to_proof(hashlist, typelist)
+    return proof
 
 tree = MerkleTree([],hashfunc)
 
@@ -132,8 +172,6 @@ class AgentsHandler(BaseHandler):
                 if agent != None:
                     response = cloud_verifier_common.process_get_status(agent)
                     common.echo_json_response(self, 200, "Success", response)
-                    #logger.info('GET returning 200 response for agent_id: ' + agent_id)
-
                 else:
                     #logger.info('GET returning 404 response. agent id: ' + agent_id + ' not found.')
                     common.echo_json_response(self, 404, "agent id not found")
@@ -143,17 +181,8 @@ class AgentsHandler(BaseHandler):
                 common.echo_json_response(self, 200, "Success", {'uuids':json_response})
                 logger.info('GET returning 200 response for agent_id list')
         elif "verifier" in rest_params:
-            # develope verifier api endpoint
-            # DEBUG
-            #print("entering the verifier with: ", rest_params)
+            
             partial_req = "1"  # don't need a pub key
-            # TODO test threading and blocking
-            # print("Thread: ", threading.current_thread())
-            # time.sleep(10)
-            # print(time.ctime())
-            # TODO
-            # assign the only agent we have as the provider 
-            # actually should figure out which agent the corresponding provider to the tenant who send the request
             agent = self.db.get_agent_ids()
             new_agent = self.db.get_agent(agent[0])
             
@@ -166,20 +195,17 @@ class AgentsHandler(BaseHandler):
             
             self.db.update_all_agents('quote_col', new_agent['quote_col'])
             
-            #Simulate busy TPM to give the illusion of Batched quotes 
+            #Simulate busy TPM with async sleep function to allow testing of quote batching functionality  
             await asyncio.sleep(10)
 
             try:
                 agent = self.db.get_agent_ids()
                 new_agent2 = self.db.get_agent(agent[0])
-                print(nonce_col.qsize(),len(new_agent2['quote_col']),os.getpid())
-
-                #print(new_agent2['quote_col'],os.getpid())
-
-                print("Making Merkle Tree")
+                               
+                logger.info("Making Merkle Tree")
 
                 tree = MerkleTree([], hashfunc)
-                logger.debug("Concurrent Nonces: ")
+                logger.info("Concurrent Nonces: " + str(nonce_col.qsize()))
                 for nonce in range(nonce_col.qsize()):
                     temp = nonce_col.get()
                     t = await temp
@@ -188,10 +214,13 @@ class AgentsHandler(BaseHandler):
                     await nonce_col.put(t)
 
                 logger.debug(beautify(tree))
+                nonce_proof = tree.get_proof(rest_params['nonce'])
+                
+
             except Exception as e: 
                 print('error:  ', e)
             
-        
+
             rest_params['nonce'] = tree.merkle_root 
             url = "http://%s:%d/quotes/integrity?nonce=%s&mask=%s&vmask=%s&partial=%s"%(new_agent['ip'],new_agent['port'],rest_params["nonce"],rest_params["mask"],rest_params['vmask'],partial_req)
             
@@ -199,41 +228,22 @@ class AgentsHandler(BaseHandler):
             response = await res
            
             json_response = json.loads(response.body)
-           
-            common.echo_json_response(self, 200, "Success", json_response["results"])
+
+            json_response_result = json_response["results"]
+
+            json_response_result['nonce_proof'] = proof_to_string(nonce_proof)
+
+            json_response_result['merkle_head'] = tree.merkle_root 
+            
+            logger.debug("To string of Nonce Proof",json_response_result['merkle_head'])
+
+
+            common.echo_json_response(self, 200, "Success", json_response_result)
         else:
             common.echo_json_response(self, 400, "uri not supported")
             logger.warning('GET returning 400 response. uri not supported: ' + self.request.path)
             # return  # not sure is necessary
-    
-    # TODO: Asynchonize method design
-    async def provider_get_quote(url):
-        res = tornado_requests.request("GET", url, context=None) 
-        response = await res 
-        json_response = json.loads(response.body)
-        print("inside ensure_future")
-        common.echo_json_response(self, 200, "Success", json_response)
-        print("insure furture sucess")
-        # ===========asynchronize method=============
-        # asyncio.ensure_future(self.process_agent(new_agent, Operational_State.GET_QUOTE))
-        # async def process_agent(self, agent, new_operational_state):
-        # if main_agent_operational_state == Operational_State.START and \
-        #  ...  await self.invoke_get_quote(agent, True)
-        #            return
 
-     # async def invoke_get_quote(self, agent, need_pubkey):
-     #    res = tornado_requests.request("GET",
-     #                                "http://%s:%d/quotes/integrity?nonce=%s&mask=%s&vmask=%s&partial=%s"%(agent['ip'],agent['port'],params["nonce"],params["mask"],params['vmask'],partial_req), context=None)
-     #    response = await res
-     #    if response.status_code !=200:
-     #        # this is a connection error, retry get quote
-     #        if response.status_code == 599:
-     #            asyncio.ensure_future(self.process_agent(agent, Operational_State.GET_QUOTE_RETRY))
-     #        else:
-     #            #catastrophic error, do not continue
-     #            error = "Unexpected Get Quote response error for cloud agent " + agent['agent_id']  + ", Error: " + str(response.status_code)
-     #            logger.critical(error)
-     #            asyncio.ensure_future(self.process_agent(agent, Operational_State.FAILED))
 
 
     def delete(self):
@@ -331,7 +341,7 @@ class AgentsHandler(BaseHandler):
                    
                     
                     new_agent = self.db.add_agent(agent_id,d)
-
+                    
                     # don't allow overwriting
                     if new_agent is None:
                         common.echo_json_response(self, 409, "Agent of uuid %s already exists"%(agent_id))
@@ -408,7 +418,7 @@ class AgentsHandler(BaseHandler):
         params = cloud_verifier_common.prepare_get_quote(agent)
         # why this line is missing is file
         agent['operational_state'] = cloud_verifier_common.CloudAgent_Operational_State.GET_QUOTE
-        
+        logger.debug(agent)
         partial_req = "1"
         if need_pubkey:
             partial_req = "0"
@@ -453,28 +463,22 @@ class AgentsHandler(BaseHandler):
     async def invoke_get_prov_quote(self, agent, need_pubkey):
         # obviously not need pubkey, delete latter
         params = cloud_verifier_common.prepare_get_quote(agent)
-        agent['operational_state'] = cloud_verifier_common.CloudAgent_Operational_State.GET_PROVIDER_QUOTE
-        # DEBUG
+
         logger.info("invoking Teneant Verifier -> Provider Verifier communication")
-        # TODO: hardcoding provider ip addr, need to read this info somewhere
-        logger.info(params['provider_ip'])
-        logger.info(params['provider_port'])
+        
+        logger.debug(params['provider_ip'])
+        logger.debug(params['provider_port'])
+
+        agent['operational_state'] = cloud_verifier_common.CloudAgent_Operational_State.GET_PROVIDER_QUOTE
         
         url = "http://%s:%d/verifier?nonce=%s&mask=%s&vmask=%s"%(params['provider_ip'],params['provider_port'],params["nonce"],params["mask"],params['vmask'])
         
-        print("requesting from tenant, url: ", url)
-       # try:
+        logger.debug("Tenant Provider requesting quote from provider verifier, url: ", url)
+
         res = tornado_requests.request("GET", url, context=None)
 
         response = await res
-
-        print("waiting")
-       # print(response.body)
-        #print(response.status_code)
-
-        #except Exception as e:
-                   # print('error: ', e)
-        # process response:
+    
         if response.status_code !=200:
             if response.status_code == 599:
                 asyncio.ensure_future(self.process_agent(agent, cloud_verifier_common.CloudAgent_Operational_State.GET_PROVIDER_QUOTE_RETRY))
@@ -486,28 +490,44 @@ class AgentsHandler(BaseHandler):
             try:
                 json_response = json.loads(response.body)
                 result = json_response.get('results')
-                # print(json_response, type(json_response)) # so far doing now
-                # pro_quote = json_response['results']['quote']
-                print(result)
-                # TODO develop a mechanism to validate provider quote
-                # ===========check the quote============
-                # -------hardcoding provider verifier agent info---------
-                provider_agent ={'v': 'z0/fHklbJqjBd6cJZtPkc8yILcauKp0i5NYiBQlxtLI=', 'ip': '11.0.0.22', 'port': 9002, 'provider_ip': None, 'provider_port': 0, 'operational_state': 3, 'public_key': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAx2rYWCSRMi8gfSa8aJbB\nSlxf7MdRJq5aGk7Ctu0FzLEGIwKa6NrjuL1Wvnx5AJ1SxJ/F/6b/QN7RRmylOdgA\nOVsROXTs7A+jI4yEdFKkp37Pd8+9DYlpZ3Karf782qyALaeuVOFWmjbigA/t7sqo\niGe2n5I4UvFCUBLRaVKIj2RoOlPBclhaseVQy+6xbt/OFK0hPwvtXcNvqpe5eFMG\n8yTqJePJmxhWW+tu7TDMu+K9RaHPenJSDC44SRonVYvSVCci5S2X1s0DRuJPgoih\npS8YWcXmodv+8p4zETFxSISfxq260veexzJqWky6t0DEt9hsUBpWlUpkYBIz0/2v\nfwIDAQAB\n-----END PUBLIC KEY-----\n', 'tpm_policy': {'22': ['0000000000000000000000000000000000000001', '0000000000000000000000000000000000000000000000000000000000000001', '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001', 'ffffffffffffffffffffffffffffffffffffffff', 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff', 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'], '15': ['0000000000000000000000000000000000000000', '0000000000000000000000000000000000000000000000000000000000000000', '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'], 'mask': '0x408000'}, 'vtpm_policy': {'23': ['ffffffffffffffffffffffffffffffffffffffff', '0000000000000000000000000000000000000000'], '15': ['0000000000000000000000000000000000000000'], 'mask': '0x808000'}, 'metadata': {}, 'ima_whitelist': {}, 'revocation_key': '', 'tpm_version': 2, 'accept_tpm_hash_algs': ['sha512', 'sha384', 'sha256', 'sha1'], 'accept_tpm_encryption_algs': ['ecc', 'rsa'], 'accept_tpm_signing_algs': ['ecschnorr', 'rsassa'], 'hash_alg': 'sha256', 'enc_alg': 'rsa', 'sign_alg': 'rsassa', 'need_provider_quote': False, 'quote_col': [], 'num_retries': 0, 'first_verified': True, 'agent_id': 'D432FBB3-D2F1-4A97-9EF7-75BD81C00000', 'nonce': '0BBbnhR7ti9zETQ6qs8i', 'registrar_keys': {'aik': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxaM0SgAA8g1CGVmUKgCQ\nf8/gue49oTRCpJgbaaG22Rx1XQtMCag2p356dHuo1xA/KSAZM9bQNvLh12B8lf/p\n0TlZkoDq6e+SBoV3CDHPaEgF6TH33WfQsudOackXt188QC4soNzHfRBxvOD6rSqo\nV2RkzOFwmAd9kiipNEMReolNslX9HgoNQgfLcb5Oam8/1B2ndtx83EXTk+80xPTN\nPM3PVI4GbExXcJuaGRsoHPp4mTB7NBr3IAuKGKbexvlDgDGieEPoK9p3O15GgHGS\nNYf87kTwFmt9+5WB/KbjKHUDe/tZil/BT2U4xXewz5waBDRmFIAZjRFKPrLmjzz9\nNQIDAQAB\n-----END PUBLIC KEY-----\n', 'ek': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0dLxdAABVJO6qxamjCMh\nyhWZgiFHZHnPEe0tMFyK3fNVr/w8lX9r+QOLxLmkT0IdgsEYtGZGefbD+qQl4O1s\nk25823Xzu5tEF8966rTdkfsv8CRrNaBLwWlnt/n+qjIoU3xZJMmR+mFfqTc3a6zV\nmPOYJstFtM8r4b9HPCUq6Mte/J3Wx4FxI9R4UrCUyiAeH++0QapIxuEGsVIYs92n\nGyvFQYBZFRU6cIt33iaqTrRCICJp+YblMnw54YJGAH2vTVQf6/fLAnQt5L1UfmTy\nR/ZA6advx8soekSBOIAW7XmV8Xp9mSquIHZdSXMJlcn/B35PU3BdkUtIYm5JuGGt\nPQIDAQAB\n-----END PUBLIC KEY-----\n', 'ekcert': 'emulator', 'regcount': 1}, 'b64_encrypted_V': b'sgfRiwxat7bXH1JQZtOqKBf30f0f/QyGC+hxUJFN/Dw8jcZ85aF/Q8nVtkYOsUohs7HDsI3r3hNmxRMAWXIvTjdCqtf7erMXCGmoaMN7bRdqVk7Qkt7/9djB9fikyS3gkomf91dJyLc+ogkl/hbExqG426cSWDdXiwydeDLmsKLtd9Ysj07wDkrB0KstG9CdpsTO3pChlXk68r+RFn0Tdn9Ch59ZNJxhoka0xt6ewBJqk8S9J3bmJQ458oU0XzyH1HywvrLrLGwpSx/tZtyQDHmCQPjY1f3vSpUAvTFzY4fflimtxU19T7l/AFF8o9GBwdqzQmpT7DzBp5xY4cGzhg==', 'provide_V': False}
+
+                #Merkle Tree Proof that was returned with Provider Agent signed quote
+                nonce_proof = string_to_proof(result['nonce_proof'])
+             
+                logger.debug("Was Tenant nonce in provider merkle tree: " ,merklelib.verify_leaf_inclusion(params.get("nonce"), nonce_proof, hashfunc,result['merkle_head']))
+
+                #Hackish Way to "Register" the Tenant Verifier with public AIK of Provider Agent so that Tenant may 
+                #confirm quote
+
+                #Sends get_keys request to Provider Registrar 
+                #Makes it so tenant dosn't have to harcode provider verifier information 
+                registrar_client.init_client_tls(config, 'cloud_verifier')
+                registrar_keys = registrar_client.getKeys(params['provider_ip'], config.get("general", "registrar_tls_port"), agent['agent_id'])
+
+                #provider_agent = {'v': '5IDWvzBPeLjpJ6f1woEmm7/SU+/AA8JWtWR9mIQXDGk=', 'ip': '11.0.0.22', 'port': 9002, 'provider_ip': None, 'provider_port': 0, 'operational_state': 3, 'public_key': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwp02Zhqyk3i/GFJPPH54\nlJSElPUQmLZeVpTXKYAvuttuYSjwz2fGATCiffKHnZmfIHUhMGH+zKvtFPCy/Dwo\nOKUWBfhU1QjEFP6EKywiPk8a0uDipQNq87ELJfnPRKA0leIIkyYFIpYfn/TvlthA\nweUlX15OpWHn+x9sDA2HldZZae4YS/51pW0GM8biHNhcQ4J1c+DYc+HKojobmBHz\nKtBAmmd5HdThFSSBhqFo8J+hs0+2Mr4LRiqYwAYwGsYNQblcZAvIAboqR2GZ4XL8\nYlJnzCpyoVLSQPM4FmupJhexp5PAHUzdJ96wsS8AVy/+i3tp+l43+fL9CI1LYBQD\newIDAQAB\n-----END PUBLIC KEY-----\n', 'tpm_policy': {'22': ['0000000000000000000000000000000000000001', '0000000000000000000000000000000000000000000000000000000000000001', '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001', 'ffffffffffffffffffffffffffffffffffffffff', 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff', 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff'], '15': ['0000000000000000000000000000000000000000', '0000000000000000000000000000000000000000000000000000000000000000', '000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000'], 'mask': '0x408000'}, 'vtpm_policy': {'23': ['ffffffffffffffffffffffffffffffffffffffff', '0000000000000000000000000000000000000000'], '15': ['0000000000000000000000000000000000000000'], 'mask': '0x808000'}, 'metadata': {}, 'ima_whitelist': {}, 'revocation_key': '', 'tpm_version': 2, 'accept_tpm_hash_algs': ['sha512', 'sha384', 'sha256', 'sha1'], 'accept_tpm_encryption_algs': ['ecc', 'rsa'], 'accept_tpm_signing_algs': ['ecschnorr', 'rsassa'], 'hash_alg': 'sha256', 'enc_alg': 'rsa', 'sign_alg': 'rsassa', 'need_provider_quote': False, 'quote_col': [], 'registrar_keys': {'aik': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApG0MqAABAlDn1RefgQkw\ngAtoV6LVJaF19Zi3VSxbXkdFbgvObLHsRHcpR7HJKrCuX0yJo9T8r39v3WKHhiUt\nEpEAoQYGXHlWaG/Z01OE0DD19z3CEj9EvfkIpwJf15NAnkqrhVA4FKDyOMo5piHV\nixAIxpIbysGswo+PcTi9CjIE0dRFiGzju3wF8ObqcfSlX8VD24X2tOf1LYyxEUhs\nba9jfzwMgidaafA6gV+8e2cW9TiOM1VIMc1IofvrsspHTUxSD6jC6XbW88UUYC6i\nqTnh5wAl7Ag/TfENsRhCuaaeRellVVm/PfGF8+FjcdWX91vq76mcqwI0qaaOqBRl\n+QIDAQAB\n-----END PUBLIC KEY-----\n', 'ek': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0dLxdAABVJO6qxamjCMh\nyhWZgiFHZHnPEe0tMFyK3fNVr/w8lX9r+QOLxLmkT0IdgsEYtGZGefbD+qQl4O1s\nk25823Xzu5tEF8966rTdkfsv8CRrNaBLwWlnt/n+qjIoU3xZJMmR+mFfqTc3a6zV\nmPOYJstFtM8r4b9HPCUq6Mte/J3Wx4FxI9R4UrCUyiAeH++0QapIxuEGsVIYs92n\nGyvFQYBZFRU6cIt33iaqTrRCICJp+YblMnw54YJGAH2vTVQf6/fLAnQt5L1UfmTy\nR/ZA6advx8soekSBOIAW7XmV8Xp9mSquIHZdSXMJlcn/B35PU3BdkUtIYm5JuGGt\nPQIDAQAB\n-----END PUBLIC KEY-----\n', 'ekcert': 'emulator', 'regcount': 1}, 'nonce': 'D9ge8y9zu60budeNVWMx', 'b64_encrypted_V': b'Wy5atU+joWoUVNrn3yIKWPVydG4mE3ngWF5N/bKTTzXSLbpO+IlayXuy6v+teC8OGO2bMnjJBeKUXEQmFyvei0XVFa3A76V9d2YPF8Vkf8nKT4rWm/6RiAwZqbzY+IR4e27P+Wf2ZExHE+2EbPgVefAD87RhUyjbuhqZXFB65i9DCeK93DapPj2gLhxnzirmdTn23bDOFhVyHAidhAoCiK7CA4TrT2N0j3q5ConyMx7ZNfyoDdkWKNGlcJgjFaCqJQYAFlcbfid4EytDZd6+gX6RhyYi82iwUg+LDASsrS7FbR/AdCnE1kJuYCIoluUhztHr7nzT2o9/r6YKTCDRXQ==', 'provide_V': False, 'num_retries': 0, 'first_verified': True, 'agent_id': 'D432FBB3-D2F1-4A97-9EF7-75BD81C00000'}                
                 tpm_version = result.get('tpm_version')
                 tpm = tpm_obj.getTPM(need_hw_tpm=False, tpm_version=tpm_version)
                 hash_alg = result.get('hash_alg')
                 enc_alg = result.get('enc_alg')
                 sign_alg = result.get('sign_alg')
+
                 try:
-                    validQuote = tpm.check_quote(params.get("nonce"),
-                                     provider_agent['public_key'],   # received_public_key,
-                                     result.get('quote'),
-                                     provider_agent['registrar_keys']['aik'],
-                                     provider_agent['tpm_policy'],
-                                     None, # ima_measurement_list,
-                                     provider_agent['ima_whitelist'],
-                                     hash_alg)
-                    print("validation result for provider quote: ", validQuote)
+                    #Before checking quote validity make sure Tenant nonce was in original batch request 
+                    #If not quote is at wrong tenant verifier, and it can not confirm quote validity 
+                    if merklelib.verify_leaf_inclusion(params.get("nonce"), nonce_proof, hashfunc,result['merkle_head']):
+                        validQuote = tpm.check_quote(result['merkle_head'],
+                                         agent['public_key'],   # NK keys 
+                                         result.get('quote'),
+                                         registrar_keys['aik'],
+                                         agent['tpm_policy'],
+                                         None, # ima_measurement_list,
+                                         agent['ima_whitelist'],
+                                         hash_alg)
+                        logger.info("Provider_IP: " + str(params['provider_ip']))
+                        logger.info("Provider_Port: " + str(params['provider_port']))
+                        logger.info("validation result for provider quote: "+ str(validQuote))
+                    else:
+                        logger.error("Invalid Quote")
                 except Exception as e:
                     print('error: ', e)
                 
@@ -729,6 +749,7 @@ def main(argv=sys.argv):
     try:
         tornado.ioloop.IOLoop.instance().start()
     except KeyboardInterrupt:
+        
         tornado.ioloop.IOLoop.instance().stop()
         if config.getboolean('cloud_verifier', 'revocation_notifier'):
             revocation_notifier.stop_broker()

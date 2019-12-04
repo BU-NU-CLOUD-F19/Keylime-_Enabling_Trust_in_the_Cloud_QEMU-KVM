@@ -122,6 +122,7 @@ class ProtectedHandler(BaseHTTPRequestHandler):
     def do_PUT(self):
         """PUT not supported"""
         common.echo_json_response(self, 405, "PUT not supported via TLS interface")
+
         return
 
     def do_DELETE(self):
@@ -398,6 +399,7 @@ def init_db(dbname):
         'active': 'INT',
         'provider_keys': 'TEXT',
         'regcount': 'INT',
+         
         }
 
     # these are the columns that contain json data and need marshalling

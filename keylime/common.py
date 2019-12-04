@@ -46,6 +46,7 @@ def convert(data):
     if isinstance(data, list):   return list(map(convert, data))
     return data
 
+
 # Current Keylime API version
 API_VERSION='2'
 
@@ -317,3 +318,5 @@ BOOTSTRAP_KEY_SIZE=32
 CA_IMPL = config.get('general','ca_implementation')
 
 CRL_PORT=38080
+
+

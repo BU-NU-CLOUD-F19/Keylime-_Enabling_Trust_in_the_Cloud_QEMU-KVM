@@ -83,7 +83,7 @@ class Handler(BaseHTTPRequestHandler):
         """
 
         logger.info('GET invoked from ' + str(self.client_address)  + ' with uri:' + self.path)
-        logger.info('THREAD ID' + threading.currentThread().getName())
+        logger.debug('THREAD ID' + threading.currentThread().getName())
 
 
         rest_params = common.get_restful_params(self.path)

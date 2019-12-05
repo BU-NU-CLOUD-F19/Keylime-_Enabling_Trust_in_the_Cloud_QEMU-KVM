@@ -34,7 +34,7 @@ end
 Vagrant.configure("2") do |config|
    (1..instances).each do |i|
       config.vm.define "keylime#{i}" do |keylime|
-         keylime.vm.box = "fedora/31-cloud-base"
+         keylime.vm.box = "fedora/30-cloud-base"
          keylime.vm.network :private_network, ip: "10.0.0.#{i}1"
          keylime.vm.network "forwarded_port", guest: 443, host: "844#{i}"
          if instances == 1
@@ -60,6 +60,8 @@ Vagrant.configure("2") do |config|
              ansible.extra_vars = {
                ansible_python_interpreter:"/usr/bin/python3",
              }
+         keylime.vm.provision "shell",
+           inline: "pip3 install --user merklelib"
            end
         end
     end

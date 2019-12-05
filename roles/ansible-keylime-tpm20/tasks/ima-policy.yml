@@ -3,7 +3,7 @@
 
 - name: Copy ima-policy
   copy:
-    src: /root/keylime/demo/ima-policy
+    src: /root/keylime-dev/demo/ima-policy
     dest: /etc/ima/ima-policy
     mode: 0644
     remote_src: yes

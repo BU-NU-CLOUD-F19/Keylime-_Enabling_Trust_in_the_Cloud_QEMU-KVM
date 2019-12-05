@@ -146,9 +146,16 @@ Inside the state `Get Provider's quote`, we send a GET request to the provider v
 ### REST API and Endpoint design
 We design an API inside the verifier for tenant verifier to invoke when it need provider's quote. We define a new endpoint for the API `'provider's ip':'verifier port'/verifier?nonce=$=&mask=&vmask=`. The tenant uses the provider's IP address to locate the provider, passes parameters needed to generate a quote. After receiving requests from tenant verifiers, the provider verifier will aggregate nonce from multiple request from differe tenant verifiers and grows a Merkle tree (details will illustrate in the next section). Then the provider verifier will use the root of the Merkle tree as the new nonce to ask for a quote from its agent. After getting quote from its own agent, provider verifier will forward this quote back to tenant verifier along with the root of the Merkle tree and the proof of Merkle tree (illustrate in next dsection). And the tenant verifier will be able to verify the quote using the information above. 
 ![Rest_API.png](/assets/images/Rest_API.png)
+
 ### Nonce Aggregation with Merkle tree
 
-### Verification of quote
+### Verification of Quote
+In the provider verifier, once a response is received from the provider agent, an Audit Proof list is generated for each nonce that was processed by the batched get quote request.  Then, this proof needed to be serialized into a format that can be added to the JSON response body, so that it can be sent to the tenant verifiers. Each audit node needs its hash value, as well as its node type, to be generated without the use of the entire Merkle tree. We stored this information for each node in two lists, and then concatenated these lists to form a single string that represents an audit proof. This string was added to the JSON response body along with the root hash of the merkle tree. The utility functions for this process are in the file `merklefunctons.py`, and also at the top of `cloud_verifier_tornado.py`.
+
+Once the tenant verifier received its GET response, the audit proof needed to be recreated from the string we passed. First, the response string was parsed into a format that could be used by the AuditProof constructor. Then the AuditProof constructor was called directly, instead of generating the proof using the merkle tree class. The merklelib function `verify_leaf_inclusion` was then called using the reconstructed audit proof, the nonce, the root hash, and the hash function.  Since the provider verifier and the tenant verifier are both managed by `cloud_verifier_tornado.py`, we do not need to pass information about the hash function inside our HTTP requests.
+
+`verify_leaf_inclusion` returns true if the tenant verifier's nonce was processed, and false otherwise. When only a single nonce was processed, an empty audit proof is generated, but `verify_leaf_incluson` still returns true, since the single nonce is effectively the root hash of the tree.
+
 
 ## Acceptance Criteria
 

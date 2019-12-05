@@ -168,43 +168,19 @@ For this project we built two main demonstrations
 
 The following provides information on how to setup our prototype keylime environment, as well as run demos proving the validity of the above features. 
 
-Please begin this process by cloning our repository 
+Please begin this process by cloning our repository and ensuring you have ![VirtualBox](https://www.virtualbox.org/wiki/Downloads) downloaded
 
 ### Environment Setup 
 
-To run our demonstrations the keylime environments can either be provisioned automatically with Vagrant or manually via . virtualbox GUI, instructions for both are shown below
+To run our demonstrations the keylime environments can either be provisioned automatically with Vagrant or manually vi the virtualbox GUI 
 
-**We STRONGLY recommend using Vagrant** and the automatic provisioning process due to the complex setup keylime requires, however Vagrant has been shown to cause some issues with windows users on this project 
+Instructions for both are shown below
+
+We STRONGLY recommend using Vagrant and the automatic provisioning process due to the complex setup keylime requires, however Vagrant has been shown to cause some issues with windows users on this project 
 
 #### Vagrant Setup (recomended)
 
-##### Virtualbox 
-
-Virtualbox must be installed to demo our prototype design it can be installed ![here](https://www.virtualbox.org/wiki/Downloads)
-
-##### TPM Version Control
-
-Either TPM version 1.2 or TPM 2.0 support can be configured by simply changing the role in the `playbook.yml` 
-
-For TPM 2.0 use:
-
-```
-  - ansible-keylime-tpm20
-```
-
-For TPM 1.20 use:
-
-```
-  - ansible-keylime-tpm12
-```
-
-Both roles will deploy the relevant TPM 1.2 Emulator (tpm4720) or 2.0 Emulator (IBM software TPM).
-
-**For this deployment of keylime we will be using the TPM 2.0 IBM emulator**
-
-##### Vagrant
-
-A `Vagrantfile` is available for automatically provisioning the vitual machines.
+A `Vagrantfile` is available for automatically provisioning the vitual machines. For even more information on this vagrant setup see the original ![ansible-keylime-tpm-emulator repository](https://github.com/keylime/ansible-keylime-tpm-emulator)
 
 1. Navagate to `Vagrantfile` with `cd keylime_environment_setup`
 2. Run `vagrant --instances=2 --repo=<user_home>/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM/keylime_master --cpus=2 --memory=2048  up --provider virtualbox --provision`
@@ -212,11 +188,13 @@ A `Vagrantfile` is available for automatically provisioning the vitual machines.
      - This will create two VMs named `Keylime1` and `keylime2` 
 3. Connect to the two VMs by bringing up to terminals already in the `keylime_environment_setup` directory and then run `vagrant --instances=2 ssh keylime1` in the first terminal and `vagrant --instances=2 ssh keylime2` in the second terminal 
 4. Navigate to the root directory in both VMs with the command `sudo su -`
-5. Then run `tpm2_getrandom 8` in each VM to ensure the TPM emulator is running, the ouput should be similar to the following
-     - `0x6F 0xA7 0xE0 0x28 0x98 0x33 0x62 0x78'
-6. Finally, for each VM, open 3 more Terminals and redo steps 3. and 4. so that you have a total of 4 terminals connected to keylime1 and keylime2 respectively. 
+5. Ensure keylime shared folder is working with `cd keylime_master` and then run `python3 setup.py install` to ensure the keylime codebase is loaded properly
+6. Then run `tpm2_getrandom 8` in each VM to ensure the TPM emulator is running, the ouput should be similar to the following
+     - `0x6F 0xA7 0xE0 0x28 0x98 0x33 0x62 0x78`
+     - If function returns an error try to start the tpm server with `tpm_serverd` and try again 
+7. Finally, for each VM, open 3 more Terminals and redo steps 3. and 4. so that you have a total of 4 terminals, connected to keylime1 and 4 connected keylime2. 
      
-#### Virualbox with Fedora 30 image
+#### Manual Virualbox Setup with Fedora 30 image
 1. Download Fedora 30 image ![link](https://dl.fedoraproject.org/pub/fedora/linux/releases/30/Workstation/x86_64/iso/Fedora-Workstation-Live-x86_64-30-1.2.iso) (if link not work, https://dl.fedoraproject.org/pub/fedora/linux/releases/30/Workstation/x86_64/iso/Fedora-Workstation-Live-x86_64-30-1.2.iso)
 2. Create a virtual machine and install Fedora 30. _Fedora requires a minimum of 10GB disk, 1GB RAM, and a 1GHz processor to install and run successfully._
 3. Download the keylime bash file which will help you finish the installation. 
@@ -241,24 +219,41 @@ sudo su
 enter your password:
 python3 setup.py install
 ```
+6. Start two identical virtual machines with keylime installed. One is the provider and the other one is the tenant. Put these two machines into same network, using VB's NAT networking GUI
 
-### Deploying Demos
+7. Remove the original DB file to resolve the incompatibility `rm /var/lib/keylime/cv_data.sqlite`, since the structure of DB has been changed.
 
-#### Str of Provider Verifier API
-1. Start two identical virtual machines with keylime installed. One is the provider and the other one is the tenant. Put these two machines into same network.  (if you are using Vagrant, skip this part)
-2. If you have run keylime before, remove the original DB file to resolve the incompatibility `rm /var/lib/keylime/cv_data.sqlite`, since the structure of DB has been changed.
-3. Run the Keylime instance in the provider first
-  i. Open 4 termianls with sudo mode
-  ii. run `tpm_serverd` to bring up tpm emulator (if you have run this before, ignore)
-  iii. In the first terminal, run `keylime_verifier`
-  iv. In the second terminal, run `keylime_registrar`
-  v. In the third terminal, run `keylime_agent`
-  vi. In the fourth terminal, run `keylime_tenant -t 127.0.0.1 -f /home/zycai/Keylime_test/keylime/README.md` @astoycos modify this command and explain how to set those parameters.
-4. Then run the Keylime instance in the tenant
-  i-v. The same as how you start provider
-  vi. In the fourth terminal, run `keylime_tenant -t 127.0.0.1 -f /home/zycai/Keylime_test/keylime/README.md` @astoycos modify this command and explain how to set those parameters.
-5. From the first terminal in the tenant VM, that is the tenant verifier. You can see the provider's quote which the tenant verifier asked, and the result of the validity of the quote. 
-#### Nonce Aggregation with Merkle Tree
+8. install merklelib with `pip3 install --user merklelib`
+
+9. Finally for each VM bring up 4 terminals for a total of 8 terminals 
+
+### Demos
+
+DISCLAIMER: The following instuctions will assume two VMs with keylime are already runing
+
+For the Vagrant envrionment setup refer to the VMs as follows:
+- **keylime1** -> Provider 
+- **keylime2** -> Tenant
+
+for the manual environment setup Provider Tenant assignment is arbitrary just make sure to keep trak or each respectively 
+
+#### Tenant/Provider Verifier communication pipeline
+
+1. Provision Keylime in the **Provider** first, make sure the following commands run without errors 
+      - In the first terminal, run `keylime_verifier`
+      - In the second terminal, run `keylime_registrar`
+      - In the third terminal, run `keylime_agent`
+      - In the fourth terminal, run `keylime_tenant -t 10.0.0.11 -f <user_home>/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM/keylime_master/README.md` 
+
+2. Provision Keylime in the **Tenant** 
+      - In the first terminal, run `keylime_verifier`
+      - In the second terminal, run `keylime_registrar`
+      - In the third terminal, run `keylime_agent`
+      - In the fourth terminal, run `keylime_tenant -t 10.0.0.21 -pv 10.0.0.11 -pvp 8991 -npq True -f <user_home>/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM/keylime_master/README.md` 
+      
+ 3. From the first terminal in the tenant VM, that is the tenant verifier. You can see the provider's quote which the tenant verifier asked, and the result of the validity of the quote. 
+
+#### Quote Request Nonce batching and redistrobution utilizing a Merkletree structure 
 1. Start a virtual machine with keylime installed.
 2. If you have run keylime before, remove the original DB file to resolve the incompatibility `rm /var/lib/keylime/cv_data.sqlite`, since the structure of DB has been changed.
 3. Run the Keylime instance in VM

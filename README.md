@@ -235,7 +235,7 @@ For the Vagrant envrionment setup refer to the VMs as follows:
 - **keylime1** -> Provider 
 - **keylime2** -> Tenant
 
-for the manual environment setup Provider Tenant assignment is arbitrary just make sure to keep trak or each respectively 
+For the manual environment setup Provider/Tenant assignment is arbitrary just make sure to keep trck of each respectively 
 
 #### Tenant/Provider Verifier communication pipeline
 
@@ -251,20 +251,20 @@ for the manual environment setup Provider Tenant assignment is arbitrary just ma
       - In the third terminal, run `keylime_agent`
       - In the fourth terminal, run `keylime_tenant -t 10.0.0.21 -pv 10.0.0.11 -pvp 8991 -npq True -f <user_home>/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM/keylime_master/README.md` 
       
- 3. From the first terminal in the tenant VM, that is the tenant verifier. You can see the provider's quote which the tenant verifier asked, and the result of the validity of the quote. 
+ 3.  Wait ~5s (an exaggerated simulation of TPM hardware latency) From the first terminal in the tenant VM, that is the tenant verifier. You can see the provider's quote which the tenant verifier asked, and the result of the validity of the quote. 
 
 #### Quote Request Nonce batching and redistrobution utilizing a Merkletree structure 
-1. Start a virtual machine with keylime installed.
-2. If you have run keylime before, remove the original DB file to resolve the incompatibility `rm /var/lib/keylime/cv_data.sqlite`, since the structure of DB has been changed.
-3. Run the Keylime instance in VM
-  i. Open 4 termianls with sudo mode
-  ii. run `tpm_serverd` to bring up tpm emulator
-  iii. In the first terminal, run `keylime_verifier`
-  iv. In the second terminal, run `keylime_registrar`
-  v. In the third terminal, run `keylime_agent`
-  vi. In the fourth terminal, run `keylime_tenant -t 127.0.0.1 -f /home/zycai/Keylime_test/keylime/README.md` @astoycos modify this command and explain how to set those parameters.
-4. Open a fifth terminal, run the testing bash script `name TBD` (@astoycos please complete this). The content of this script is using curl to send batch requests simultaneously to the endpoint with different nonces.
-5. Wait 5s (an exaggerated simulation of TPM hardware latency) and look inside the first terminal, the verifier, you can see nonces are aggregated, and form a merkle tree inside with these nonces.
+1. Provision Keylime in the **Provider** first, make sure the following commands run without errors 
+      - In the first terminal, run `keylime_verifier`
+      - In the second terminal, run `keylime_registrar`
+      - In the third terminal, run `keylime_agent`
+      - In the fourth terminal, run `keylime_tenant -t 10.0.0.11 -f <user_home>/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM/keylime_master/README.md` 
+
+2. In **Tenant** VM execute the following 
+      - `./keylime_maste/scripts/verifier_tester.sh`
+      - This will concurrenly send 10 GET requests to the provider verifier 
+
+3. Wait ~5s (an exaggerated simulation of TPM hardware latency) and look inside the first terminal, the verifier, you can see nonces are aggregated, and form a merkle tree inside with these nonces.
 
 ## Release Planning
 - Release 1

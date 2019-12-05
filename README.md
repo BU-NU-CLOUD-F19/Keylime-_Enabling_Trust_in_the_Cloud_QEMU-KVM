@@ -1,20 +1,28 @@
 ﻿# Keylime: Enabling Trust in the Cloud - QEMU/KVM
 ## Table of Contents
 * [Project Background and Current Solutions](#project-background-and-current-solutions)
-  * [Automated](#automated)
-  * [Manual](#manual)
 * [Project Vision and Goals](#project-vision-and-goals)
-* [Project Scope and Features](#project-scope-and-features)
 * [Project Users and Personas](#project-users-and-personas)
-  * [Configuring keylime](#configuring-keylime)
-  * [Running keylime](#running-keylime)
-  * [Provisioning](#provisioning)
-  * [Using keylime CA](#using-keylime-ca)
-* [Report a Security Vulnerability](#report-a-security-vulnerability)
-* [Meeting Information](#project-meetings)
-* [First Timers Support](#first-timers-support)
-* [Additional Reading](#additional-reading)
-* [License](#license)
+* [Project Scope and Features](#project-scope-and-features)
+* [Solution Concept](#solution-concept)
+  * [Desired Architecture](#desired-architecture)
+  * [Change of Verifier State Machine](#change-of-verifier-state-machine)
+  * [REST API and Endpoint Design](#rest-api-and-endpoint-design)
+  * [Nonce Aggregation with Merkle Tree](#nonce-aggregation-with-merkle-tree)
+  * [Verification of Quote](#verification-of-quote)
+* [Acceptance Criteria](#acceptance-criteria)
+* [Installing and Deploying our Keylime Prototype](#installing-and-deploying-our-keylime-prototype)
+  * [Environment Setup](#environment-setup)
+    * [Vagrant Setup (recommended](#vagrant-setup-(recommended))
+    * [Manual VirtualBox Setup with Fedora 30 Image](#manual-virtualbox-setup-with-fedora-30-image)
+  * [Demos](#demos)
+    * [Tenant/Provider Verifier Communication Pipeline](#tenant/provider-Verifier-communication-pipeline)
+    * [Quote Request Nonce Batching and Redistribution Using a Merkletree Structure](#quote-request-nonce-batching-and-redistribution-using-a-merkletree-structure)
+* [Release Planning](#release-planning)
+* [Presentation Slides](#presentation-slides)
+* [Open Questions & Risks](#open-questions-&-risks)
+* [References and Resources](#references-and-resources)
+
 ## Project Background and Current Solutions
 In cloud computing, users running applications on Infrastructure-as-a-Service (IaaS) nodes can not verify for themselves that the resources they are using are secure. Because of this, they must fully trust the cloud service provider that nothing (from the BIOS to the OS) has been compromised. This raises concern, because the user does not know if their resources are controlled by malicious insiders and rogue organizations. 
 
@@ -109,7 +117,7 @@ The main high-level system components of the Keylime extension are Keylime itsel
     - Keylime agent (outside the VM/resource, used by the cloud provider)
   
   
-### Desired architecture
+### Desired Architecture
  
 ![System diagram of Keylime implementation](/assets/images/architecture.png)
 
@@ -143,11 +151,11 @@ Inside the verifier, we have a agent dictionary to store all the information abo
 Inside the state `Get Provider's quote`, we send a GET request to the provider verifier, with parameters `nonce`, `mask` and `vmask`. Since the registration process has not been implemented yet, we use the IP address entered from the tenant to indicate where the provider is. The endpoint in the provider verifier process of the request will be discussed in the next section. After getting the provider quote back, the tenant verifier will validate the quote (discussed in the Verification of Quote section). If the quote is invalid, it will go to the `Invalid Quote` state and stall there. Otherwise, it will continue following the bootstrapping process, and go to the `Provide V` state.
 
 
-### REST API and Endpoint design
+### REST API and Endpoint Design
 We designed an API inside the verifier for the tenant verifier to invoke when it needs the provider's quote. We defined a new endpoint for the API `'provider's ip':'verifier port'/verifier?nonce=$=&mask=&vmask=`. The tenant uses the provider's IP address to locate the provider, and passes parameters needed to generate a quote. After receiving requests from tenant verifiers, the provider verifier will aggregate nonces from multiple requests from different tenant verifiers, and create a Merkle tree. Then, the provider verifier will use the root of the Merkle tree as the new nonce to ask for a quote from its agent. After getting the quote from its own agent, the provider verifier will forward this quote back to tenant verifier along with the root of the Merkle tree and the proof of Merkle tree. Finally, the tenant verifier will be able to verify the quote using the information above. 
 ![Rest_API.png](/assets/images/Rest_API.png)
 
-### Nonce Aggregation with Merkle tree
+### Nonce Aggregation with Merkle Tree
 
 ### Verification of Quote
 In the provider verifier, once a response is received from the provider agent, an Audit Proof list is generated for each nonce that was processed by the batched get quote request.  Then, this proof needed to be serialized into a format that can be added to the JSON response body, so that it can be sent to the tenant verifiers. Each audit node needs its hash value, as well as its node type, to be generated without the use of the entire Merkle tree. We stored this information for each node in two lists, and then concatenated these lists to form a single string that represents an audit proof. This string was added to the JSON response body along with the root hash of the merkle tree. The utility functions for this process are in the file `merklefunctons.py`, and also at the top of `cloud_verifier_tornado.py`.
@@ -201,7 +209,7 @@ A `Vagrantfile` is available for automatically provisioning the vitual machines.
      - If function returns an error try to start the tpm server with `tpm_serverd` and try again 
 7. Finally, for each VM, open 3 more Terminals and redo steps 3. and 4. so that you have a total of 4 terminals, connected to keylime1 and 4 connected keylime2. 
      
-#### Manual Virualbox Setup with Fedora 30 image
+#### Manual Virualbox Setup with Fedora 30 Image
 1. Download Fedora 30 image ![link](https://dl.fedoraproject.org/pub/fedora/linux/releases/30/Workstation/x86_64/iso/Fedora-Workstation-Live-x86_64-30-1.2.iso) (if link not work, https://dl.fedoraproject.org/pub/fedora/linux/releases/30/Workstation/x86_64/iso/Fedora-Workstation-Live-x86_64-30-1.2.iso)
 2. Create a virtual machine and install Fedora 30. _Fedora requires a minimum of 10GB disk, 1GB RAM, and a 1GHz processor to install and run successfully._
 3. Download the keylime bash file which will help you finish the installation. 
@@ -244,7 +252,7 @@ For the Vagrant envrionment setup refer to the VMs as follows:
 
 For the manual environment setup Provider/Tenant assignment is arbitrary just make sure to keep trck of each respectively 
 
-#### Tenant/Provider Verifier communication pipeline
+#### Tenant/Provider Verifier Communication Pipeline
 
 1. Provision Keylime in the **Provider** first, make sure the following commands run without errors 
       - In the first terminal, run `keylime_verifier`
@@ -266,7 +274,7 @@ For the manual environment setup Provider/Tenant assignment is arbitrary just ma
  
  6. Run `Ctrl-C` in all other terminals to shut down Keylime
 
-#### Quote Request Nonce batching and redistrobution utilizing a Merkletree structure 
+#### Quote Request Nonce Batching and Redistribution Using a Merkletree Structure 
 1. Provision Keylime in the **Provider** first, make sure the following commands run without errors 
       - In the first terminal, run `keylime_verifier`
       - In the second terminal, run `keylime_registrar`

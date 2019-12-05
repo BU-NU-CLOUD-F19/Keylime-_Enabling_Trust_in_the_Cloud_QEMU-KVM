@@ -251,7 +251,13 @@ For the manual environment setup Provider/Tenant assignment is arbitrary just ma
       - In the third terminal, run `keylime_agent`
       - In the fourth terminal, run `keylime_tenant -t 10.0.0.21 -pv 10.0.0.11 -pvp 8991 -npq True -f <user_home>/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM/keylime_master/README.md` 
       
- 3.  Wait ~5s (an exaggerated simulation of TPM hardware latency) From the first terminal in the tenant VM, that is the tenant verifier. You can see the provider's quote which the tenant verifier asked, and the result of the validity of the quote. 
+ 3.  Wait ~5s (an exaggerated simulation of TPM hardware latency) From the first terminal in the tenant VM, that is the tenant verifier. You can see the provider's quote which the tenant verifier asked, and the result of the validity of the quote.
+ 
+ 4. Run `keylime_tenant -t 10.0.0.11 -c delete` in **Provider** terminal to delete Agent 
+ 
+ 5. Run `keylime_tenant -t 10.0.0.21 -c delete` in **Tenant** terminal to delete Agent 
+ 
+ 6. Run `Ctrl-C` in all other terminals to shut down Keylime
 
 #### Quote Request Nonce batching and redistrobution utilizing a Merkletree structure 
 1. Provision Keylime in the **Provider** first, make sure the following commands run without errors 
@@ -265,6 +271,11 @@ For the manual environment setup Provider/Tenant assignment is arbitrary just ma
       - This will concurrenly send 10 GET requests to the provider verifier 
 
 3. Wait ~5s (an exaggerated simulation of TPM hardware latency) and look inside the first terminal, the verifier, you can see nonces are aggregated, and form a merkle tree inside with these nonces.
+
+4. Run `keylime_tenant -t 10.0.0.11 -c delete` in **Provider** terminal to delete Agent 
+ 
+6. Run `Ctrl-C` in all other terminals to shut down Keylime
+
 
 ## Release Planning
 - Release 1

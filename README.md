@@ -160,6 +160,13 @@ The minimum acceptance criteria for this project is a working Keylime port to QE
 The stretch goals of the Keylime extension is to implement registration process, clarify concepts on how to deliver a public AIK (attestation key) of the hardware TPM to the tenant registrar (involves a certificate authority and libvirt)
 
 ## Installing and Deploying our Keylime Prototype 
+For this project we built two main demonstrations
+
+1. A new commnucation pipeline between verifiers to allow tenant verifiers to request a quote from the provider verifier's agent which
+
+2. A new method to handle quote requests in the verifier, it will bath quote request nonces into a merkle tree when they are either concurrent or the hardware TPM is busy. Then the verifier also handles redistrobution of the quotes, merkle tree head, and relavent proofs to the tenant verifiers. 
+
+The following provides information on how to setup our prototype keylime environment, as well as run demos proving the validity of the above features. 
 
 ### Environment Setup 
 

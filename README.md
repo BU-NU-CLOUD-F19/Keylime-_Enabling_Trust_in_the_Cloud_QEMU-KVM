@@ -13,14 +13,14 @@
 * [Acceptance Criteria](#acceptance-criteria)
 * [Installing and Deploying our Keylime Prototype](#installing-and-deploying-our-keylime-prototype)
   * [Environment Setup](#environment-setup)
-    * [Vagrant Setup (recommended)](#vagrant-setup-(recommended))
-    * [Manual VirtualBox Setup with Fedora 30 Image](#manual-virtualbox-setup-with-fedora-30-image)
+    * [Vagrant Setup (recommended)](#vagrant-setup-recommended)
+    * [Manual VirtualBox Setup with Fedora 30 Image](#manual-virualbox-setup-with-fedora-30-image)
   * [Demos](#demos)
-    * [Tenant/Provider Verifier Communication Pipeline](#tenant/provider-Verifier-communication-pipeline)
+    * [Tenant/Provider Verifier Communication Pipeline](#tenantprovider-verifier-communication-pipeline)
     * [Quote Request Nonce Batching and Redistribution Using a Merkletree Structure](#quote-request-nonce-batching-and-redistribution-using-a-merkletree-structure)
 * [Release Planning](#release-planning)
 * [Presentation Slides](#presentation-slides)
-* [Open Questions & Risks](#open-questions-&-risks)
+* [Open Questions & Risks](#open-questions--risks)
 * [References and Resources](#references-and-resources)
 
 ## Project Background and Current Solutions
@@ -153,16 +153,27 @@ Inside the state `Get Provider's quote`, we send a GET request to the provider v
 
 ### REST API and Endpoint Design
 We designed an API inside the verifier for the tenant verifier to invoke when it needs the provider's quote. We defined a new endpoint for the API `'provider's ip':'verifier port'/verifier?nonce=$=&mask=&vmask=`. The tenant uses the provider's IP address to locate the provider, and passes parameters needed to generate a quote. After receiving requests from tenant verifiers, the provider verifier will aggregate nonces from multiple requests from different tenant verifiers, and create a Merkle tree. Then, the provider verifier will use the root of the Merkle tree as the new nonce to ask for a quote from its agent. After getting the quote from its own agent, the provider verifier will forward this quote back to tenant verifier along with the root of the Merkle tree and the proof of Merkle tree. Finally, the tenant verifier will be able to verify the quote using the information above. 
-![Rest_API.png](/assets/images/Rest_API.png)
+![Rest_API](/assets/images/Rest_API.png)
 
 ### Nonce Aggregation with Merkle Tree
+The intention to build a Merkle Tree to collect nonces is addressing long latency of hardware TPM. It usually takes hundreds milliseconds to about one second to complete one cryptographic operation. In the current design, provider verifier not only needs to forward all tenant verifiers' requests but also its own requests for asking hardware TPM quotes. Due to the latency, these requests are very likely to be stalled which greatly slow down the system. 
+
+So Nabil has an idea to decrease the thoughput of accessing hardware TPM by aggregate nonces from all requests into a Merkle Tree when TPM is busy. Then when TPM is free, the verifier will use this batch to ask for a quote from hardware TPM. According to this idea, we develop a solution for nonce aggregation. First, we use `asyncio.sleep` to simulate the stall on TPM inside the provider verifier. During this period, all the nonces from tenant verifier's requests will add to a Merkle tree inside the provider verifier. After the sleep (TPM is ready), we use the root of the Merkle tree as a new nonce to ask for only one quote from its agent who has hardware TPM, since the root contains information from all nonces. Then the provider agent will send back a quote generated with the new nonce back to the provider verifier.
+
+In the provider verifier, once a response is received from the provider agent, an Audit Proof list is generated for each nonce that was processed by the batched _get quote_ request. Then, this proof needed to be serialized into a format that can be added to the JSON response body, so that it can be sent to the tenant verifiers. Each audit node needs its hash value, as well as its node type, to be generated without the use of the entire Merkle tree. We stored this information for each node in two lists, and then concatenated these lists to form a single string that represents an audit proof. This string was added to the JSON response body along with the root hash of the merkle tree. The utility functions for this process are in the file `merklefunctons.py`, and also at the top of `cloud_verifier_tornado.py`. In the end we send this JSON response, contains the quote, the root of the Merkle tree and the proof string back to each tenant verifier respectively.
 
 ### Verification of Quote
-In the provider verifier, once a response is received from the provider agent, an Audit Proof list is generated for each nonce that was processed by the batched get quote request.  Then, this proof needed to be serialized into a format that can be added to the JSON response body, so that it can be sent to the tenant verifiers. Each audit node needs its hash value, as well as its node type, to be generated without the use of the entire Merkle tree. We stored this information for each node in two lists, and then concatenated these lists to form a single string that represents an audit proof. This string was added to the JSON response body along with the root hash of the merkle tree. The utility functions for this process are in the file `merklefunctons.py`, and also at the top of `cloud_verifier_tornado.py`.
 
 Once the tenant verifier received its GET response, the audit proof needed to be recreated from the string we passed. First, the response string was parsed into a format that could be used by the AuditProof constructor. Then the AuditProof constructor was called directly, instead of generating the proof using the merkle tree class. The merklelib function `verify_leaf_inclusion` was then called using the reconstructed audit proof, the nonce, the root hash, and the hash function.  Since the provider verifier and the tenant verifier are both managed by `cloud_verifier_tornado.py`, we do not need to pass information about the hash function inside our HTTP requests.
 
-`verify_leaf_inclusion` returns true if the tenant verifier's nonce was processed, and false otherwise. When only a single nonce was processed, an empty audit proof is generated, but `verify_leaf_incluson` still returns true, since the single nonce is effectively the root hash of the tree.
+There are two parts to check if a provider's quote is valid. 
+![Verification](/assets/images/Verification.png)
+
+The first one is to see if the nonce sent by this tenant verifier has beed include inside the Merkle tree. We use the function `verify_leaf_inclusion` which mention above to do the check. It returns true if the tenant verifier's nonce was processed, and false otherwise. When only a single nonce was processed, an empty audit proof is generated, but `verify_leaf_incluson` still returns true, since the single nonce is effectively the root hash of the tree.
+
+The other on is to check if the quote is valid. We already have `tpm.check_quote` function in the project to check if the quote is valid. One thing that need to notice is that the nonce pass in this function should be the root of the Merkle tree, since the quote is generated with the new request using the root of the tree as the nonce. The `tpm.check_quote` function also need keys from the provider. Since we haven't implement the registration process, we directly read these keys out from a build-in function in the project(only work in developing) as a temporary solution. If the quote is generate with assigned nonce and signed with a valid AIK, the function will return True and False otherwise.
+
+Only if both checking part return True, the quote from the provider verifier is valid.
 
 
 ## Acceptance Criteria
@@ -216,6 +227,7 @@ A `Vagrantfile` is available for automatically provisioning the vitual machines.
 ```bash
 wget https://gist.githubusercontent.com/lukehinds/539daa4374f5cc7939ab34e62be54382/raw/d663744210652d0f4647456e9a3d05033294d91a/keylime.sh
 chmod +x keylime.sh
+/.keylime.sh
 ```
 4. See if the TPM works
  i. try `tpm_serverd`, if that works, you are free to go
@@ -226,7 +238,7 @@ chmod +x keylime.sh
 ```bash
 git clone https://github.com/BU-NU-CLOUD-F19/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM.git
 cd Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM/
-git branch andrew_multi_verifier
+git checkout keylime_master
 ```
 5. Run the setup file inside the sudo mode
 ```bash
@@ -258,19 +270,22 @@ For the manual environment setup Provider/Tenant assignment is arbitrary just ma
       - In the first terminal, run `keylime_verifier`
       - In the second terminal, run `keylime_registrar`
       - In the third terminal, run `keylime_agent`
-      - In the fourth terminal, run `keylime_tenant -t 10.0.0.11 -f <user_home>/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM/keylime_master/README.md` 
+      - In the fourth terminal, run `keylime_tenant -t 127.0.0.1 -f <user_home>/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM/keylime_master/README.md` 
 
 2. Provision Keylime in the **Tenant** 
       - In the first terminal, run `keylime_verifier`
       - In the second terminal, run `keylime_registrar`
       - In the third terminal, run `keylime_agent`
-      - In the fourth terminal, run `keylime_tenant -t 10.0.0.21 -pv 10.0.0.11 -pvp 8991 -npq True -f <user_home>/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM/keylime_master/README.md` 
+      - In the fourth terminal, run `keylime_tenant -t 127.0.0.1 -pv 10.0.0.11 -pvp 8991 -npq True -f <user_home>/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM/keylime_master/README.md` 
+        - `pv` is the provider verifier's IP address, 
+        - `pvp` is the provider verifier's port, 
+        - `npq` means if you need provider's quote, in other words, if you are a tenant instance running on the cloud node
       
  3.  Wait ~5s (an exaggerated simulation of TPM hardware latency) From the first terminal in the tenant VM, that is the tenant verifier. You can see the provider's quote which the tenant verifier asked, and the result of the validity of the quote.
  
- 4. Run `keylime_tenant -t 10.0.0.11 -c delete` in **Provider** terminal to delete Agent 
+ 4. Run `keylime_tenant -t 127.0.0.1 -c delete` in **Provider** terminal to delete Agent 
  
- 5. Run `keylime_tenant -t 10.0.0.21 -c delete` in **Tenant** terminal to delete Agent 
+ 5. Run `keylime_tenant -t 127.0.0.1 -c delete` in **Tenant** terminal to delete Agent 
  
  6. Run `Ctrl-C` in all other terminals to shut down Keylime
 
@@ -279,7 +294,7 @@ For the manual environment setup Provider/Tenant assignment is arbitrary just ma
       - In the first terminal, run `keylime_verifier`
       - In the second terminal, run `keylime_registrar`
       - In the third terminal, run `keylime_agent`
-      - In the fourth terminal, run `keylime_tenant -t 10.0.0.11 -f <user_home>/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM/keylime_master/README.md` 
+      - In the fourth terminal, run `keylime_tenant -t 127.0.0.1 -f <user_home>/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM/keylime_master/README.md` 
 
 2. In **Tenant** VM execute the following 
       - `./keylime_maste/scripts/verifier_tester.sh`
@@ -287,7 +302,7 @@ For the manual environment setup Provider/Tenant assignment is arbitrary just ma
 
 3. Wait ~5s (an exaggerated simulation of TPM hardware latency) and look inside the first terminal, the verifier, you can see nonces are aggregated, and form a merkle tree inside with these nonces.
 
-4. Run `keylime_tenant -t 10.0.0.11 -c delete` in **Provider** terminal to delete Agent 
+4. Run `keylime_tenant -t 127.0.0.1 -c delete` in **Provider** terminal to delete Agent 
  
 6. Run `Ctrl-C` in all other terminals to shut down Keylime
 

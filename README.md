@@ -13,7 +13,7 @@
 * [Acceptance Criteria](#acceptance-criteria)
 * [Installing and Deploying our Keylime Prototype](#installing-and-deploying-our-keylime-prototype)
   * [Environment Setup](#environment-setup)
-    * [Vagrant Setup (recommended)](#vagrant-setup-recomended)
+    * [Vagrant Setup (recommended)](#vagrant-setup-recommended)
     * [Manual VirtualBox Setup with Fedora 30 Image](#manual-virualbox-setup-with-fedora-30-image)
   * [Demos](#demos)
     * [Tenant/Provider Verifier Communication Pipeline](#tenantprovider-verifier-communication-pipeline)
@@ -204,7 +204,7 @@ Instructions for both are shown below
 
 We STRONGLY recommend using Vagrant and the automatic provisioning process due to the complex setup keylime requires, however Vagrant has been shown to cause some issues with windows users on this project 
 
-#### Vagrant Setup (recomended)
+#### Vagrant Setup (recommended)
 
 A `Vagrantfile` is available for automatically provisioning the vitual machines. For even more information on this vagrant setup see the original ![ansible-keylime-tpm-emulator repository](https://github.com/keylime/ansible-keylime-tpm-emulator)
 

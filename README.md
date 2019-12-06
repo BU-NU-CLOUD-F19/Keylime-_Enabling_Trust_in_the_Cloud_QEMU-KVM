@@ -271,13 +271,13 @@ For the manual environment setup Provider/Tenant assignment is arbitrary just ma
       - In the first terminal, run `keylime_verifier`
       - In the second terminal, run `keylime_registrar`
       - In the third terminal, run `keylime_agent`
-      - In the fourth terminal, run `keylime_tenant -t 127.0.0.1 -f <user_home>/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM/keylime_master/README.md` 
+      - In the fourth terminal, run `keylime_tenant -t 127.0.0.1 -f /root/keylime-dev/README.md` 
 
 2. Provision Keylime in the **Tenant** 
       - In the first terminal, run `keylime_verifier`
       - In the second terminal, run `keylime_registrar`
       - In the third terminal, run `keylime_agent`
-      - In the fourth terminal, run `keylime_tenant -t 127.0.0.1 -pv 10.0.0.11 -pvp 8991 -npq True -f <user_home>/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM/keylime_master/README.md` 
+      - In the fourth terminal, run `keylime_tenant -t 127.0.0.1 -pv 10.0.0.11 -pvp 8991 -npq True -f /root/keylime-dev/README.md` 
         - `pv` is the provider verifier's IP address, 
         - `pvp` is the provider verifier's port, 
         - `npq` means if you need provider's quote, in other words, if you are a tenant instance running on the cloud node
@@ -295,7 +295,7 @@ For the manual environment setup Provider/Tenant assignment is arbitrary just ma
       - In the first terminal, run `keylime_verifier`
       - In the second terminal, run `keylime_registrar`
       - In the third terminal, run `keylime_agent`
-      - In the fourth terminal, run `keylime_tenant -t 127.0.0.1 -f <user_home>/Keylime-_Enabling_Trust_in_the_Cloud_QEMU-KVM/keylime_master/README.md` 
+      - In the fourth terminal, run `keylime_tenant -t 127.0.0.1 -f /root/keylime-dev/README.md` 
 
 2. In **Tenant** VM execute the following 
       - `./keylime_maste/scripts/verifier_tester.sh`

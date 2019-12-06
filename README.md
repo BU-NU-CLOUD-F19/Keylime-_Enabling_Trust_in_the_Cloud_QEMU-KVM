@@ -13,7 +13,7 @@
 * [Acceptance Criteria](#acceptance-criteria)
 * [Installing and Deploying our Keylime Prototype](#installing-and-deploying-our-keylime-prototype)
   * [Environment Setup](#environment-setup)
-    * [Vagrant Setup (recommended)](#vagrant-setup-recommended)
+    * [Vagrant Setup (recommended)](#vagrant-setup-recomended)
     * [Manual VirtualBox Setup with Fedora 30 Image](#manual-virualbox-setup-with-fedora-30-image)
   * [Demos](#demos)
     * [Tenant/Provider Verifier Communication Pipeline](#tenantprovider-verifier-communication-pipeline)

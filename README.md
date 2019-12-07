@@ -1,5 +1,5 @@
 ﻿# Keylime: Enabling Trust in the Cloud - QEMU/KVM
- Video presentation: ![Video link](https://www.youtube.com/watch?v=idVgJATigfg&feature=youtu.be) 
+ Video presentation: [Video link](https://www.youtube.com/watch?v=idVgJATigfg&feature=youtu.be) 
 ## Table of Contents
 * [Project Background and Current Solutions](#project-background-and-current-solutions)
 * [Project Vision and Goals](#project-vision-and-goals)
